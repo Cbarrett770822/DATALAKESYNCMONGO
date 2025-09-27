@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Logo Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .logo-container { margin-bottom: 20px; }
+        .logo-container img { border: 1px solid #ddd; }
+    </style>
+</head>
+<body>
+    <h1>Logo Test</h1>
+    
+    <div class="logo-container">
+        <h2>Logo 192x192</h2>
+        <img src="logo192.png" alt="Logo 192x192" width="192" height="192">
+    </div>
+    
+    <div class="logo-container">
+        <h2>Logo 512x512</h2>
+        <img src="logo512.png" alt="Logo 512x512" width="256" height="256">
+    </div>
+    
+    <div class="logo-container">
+        <h2>Favicon</h2>
+        <img src="favicon.ico" alt="Favicon" width="32" height="32">
+    </div>
+    
+    <script>
+        // Check if images loaded successfully
+        document.querySelectorAll('img').forEach(img => {
+            img.onerror = function() {
+                this.style.border = '2px solid red';
+                const errorMsg = document.createElement('p');
+                errorMsg.style.color = 'red';
+                errorMsg.textContent = 'Failed to load image: ' + this.src;
+                this.parentNode.appendChild(errorMsg);
+            };
+            
+            img.onload = function() {
+                this.style.border = '2px solid green';
+                const successMsg = document.createElement('p');
+                successMsg.style.color = 'green';
+                successMsg.textContent = 'Image loaded successfully: ' + this.src;
+                this.parentNode.appendChild(successMsg);
+            };
+        });
+    </script>
+</body>
+</html>
