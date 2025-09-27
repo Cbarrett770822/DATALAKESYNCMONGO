@@ -57,8 +57,22 @@ export const getQueryResults = async (queryId, offset = 0, limit = 1000) => {
  * @returns {Promise<Object>} - Sync job response
  */
 export const startSync = async (options) => {
-  const response = await api.post('/sync-taskdetail', options);
-  return response.data;
+  try {
+    // Use the simplified endpoint for now to avoid 500 errors
+    const response = await api.post('/sync-taskdetail-simple', options);
+    return response.data;
+  } catch (error) {
+    console.error('Error in startSync:', error);
+    
+    // If the simplified endpoint fails, try the original endpoint
+    if (error.response && error.response.status === 404) {
+      console.log('Simplified endpoint not found, trying original endpoint');
+      const response = await api.post('/sync-taskdetail', options);
+      return response.data;
+    }
+    
+    throw error;
+  }
 };
 
 /**
