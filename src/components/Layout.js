@@ -22,6 +22,7 @@ import {
   Sync as SyncIcon,
   History as HistoryIcon,
   Settings as SettingsIcon,
+  Api as ApiIcon,
 } from '@mui/icons-material';
 
 // Drawer width
@@ -33,6 +34,7 @@ const navItems = [
   { text: 'Sync Configuration', path: '/sync', icon: <SyncIcon /> },
   { text: 'Sync History', path: '/history', icon: <HistoryIcon /> },
   { text: 'Settings', path: '/settings', icon: <SettingsIcon /> },
+  { text: 'API Tester', path: '/api-tester', icon: <ApiIcon /> },
 ];
 
 function Layout({ children }) {

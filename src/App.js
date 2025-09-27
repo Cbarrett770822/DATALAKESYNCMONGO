@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard';
 import SyncConfig from './components/SyncConfig';
 import SyncHistory from './components/SyncHistory';
 import Settings from './components/Settings';
+import ApiTester from './components/ApiTester';
 import NotFound from './components/NotFound';
 
 // Create theme
@@ -82,6 +83,7 @@ function App() {
             <Route path="/sync" element={<SyncConfig />} />
             <Route path="/history" element={<SyncHistory />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/api-tester" element={<ApiTester />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
