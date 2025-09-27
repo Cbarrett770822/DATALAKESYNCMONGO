@@ -175,11 +175,18 @@ function SyncConfig() {
       // Set sync job ID
       setSyncJobId(response.jobId);
       
-      // Move to next step
-      setActiveStep(1);
-      
-      // Start polling for status
-      pollSyncStatus(response.jobId);
+      // Handle simplified response (for testing)
+      if (response.stats) {
+        // If we got stats directly, skip polling and go to completion
+        setSyncStats(response.stats);
+        setActiveStep(2); // Go directly to completion step
+        setSuccess('Sync completed successfully!');
+        setLoading(false);
+      } else {
+        // Normal flow - move to progress step and start polling
+        setActiveStep(1);
+        pollSyncStatus(response.jobId);
+      }
     } catch (err) {
       console.error('Error starting sync:', err);
       setError('Failed to start sync. Please try again.');
