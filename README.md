@@ -89,8 +89,12 @@ This application provides a user-friendly interface to synchronize data from Inf
      - Build command: `npm run build`
      - Publish directory: `build`
      - Functions directory: `functions`
-   - Configure environment variables in Netlify dashboard
+   - Configure environment variables in Netlify dashboard (see [NETLIFY_ENV_SETUP.md](NETLIFY_ENV_SETUP.md) for details)
    - Deploy the application
+
+### Environment Variables
+
+The application requires several environment variables to be set for proper operation. See [NETLIFY_ENV_SETUP.md](NETLIFY_ENV_SETUP.md) for a complete list of required environment variables and setup instructions.
 
 ## License
 
