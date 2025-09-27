@@ -1,0 +1,269 @@
+// ION API Authentication Module
+const https = require('https');
+const querystring = require('querystring');
+const fs = require('fs');
+const path = require('path');
+
+// Load ION API credentials from file
+function loadCredentials() {
+  try {
+    // Path to credentials file
+    const credentialsPath = process.env.ION_CREDENTIALS_PATH || 
+      path.resolve(__dirname, '../../../../ION_Credentials/IONAPI_CREDENTIALS.ionapi');
+    
+    // Read and parse credentials
+    const credentialsData = fs.readFileSync(credentialsPath, 'utf8');
+    const credentials = JSON.parse(credentialsData);
+    
+    return {
+      tenant: credentials.ti,
+      saak: credentials.saak,
+      sask: credentials.sask,
+      clientId: credentials.ci,
+      clientSecret: credentials.cs,
+      ionApiUrl: credentials.iu,
+      ssoUrl: credentials.pu
+    };
+  } catch (error) {
+    console.error('Error loading ION API credentials:', error);
+    throw new Error('Failed to load ION API credentials');
+  }
+}
+
+// Cache the token to avoid unnecessary token requests
+let cachedToken = null;
+let tokenExpiry = null;
+
+/**
+ * Make an HTTPS request
+ * @param {Object} options - Request options
+ * @param {string} body - Request body (if applicable)
+ * @returns {Promise<Object>} - Response data
+ */
+function makeRequest(options, body = null) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            const jsonData = JSON.parse(data);
+            resolve(jsonData);
+          } catch (e) {
+            // If not JSON, return raw data
+            resolve(data);
+          }
+        } else {
+          reject({
+            statusCode: res.statusCode,
+            message: `HTTP Error: ${res.statusCode}`,
+            data: data
+          });
+        }
+      });
+    });
+    
+    req.on('error', (e) => {
+      reject({
+        message: `Request error: ${e.message}`,
+        error: e
+      });
+    });
+    
+    if (body) {
+      req.write(body);
+    }
+    
+    req.end();
+  });
+}
+
+/**
+ * Get a bearer token for API authentication
+ * @returns {Promise<string>} - Bearer token
+ */
+async function getToken() {
+  // Get credentials
+  const credentials = loadCredentials();
+  
+  // Check if we have a valid cached token
+  const now = Date.now();
+  if (cachedToken && tokenExpiry && now < tokenExpiry) {
+    console.log('Using cached token');
+    return cachedToken;
+  }
+  
+  console.log('Getting new token...');
+  
+  // Create Basic Auth header
+  const basicAuth = Buffer.from(`${credentials.clientId}:${credentials.clientSecret}`).toString('base64');
+  
+  // Prepare the request body
+  const body = querystring.stringify({
+    grant_type: 'password',
+    username: credentials.saak,
+    password: credentials.sask,
+    scope: 'openid'
+  });
+  
+  // Extract hostname and path from SSO URL
+  const ssoUrlObj = new URL(credentials.ssoUrl);
+  const tokenPath = `${ssoUrlObj.pathname}token.oauth2`;
+  
+  const options = {
+    hostname: ssoUrlObj.hostname,
+    port: ssoUrlObj.port || 443,
+    path: tokenPath,
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': `Basic ${basicAuth}`,
+      'Accept': 'application/json',
+      'Content-Length': Buffer.byteLength(body)
+    }
+  };
+  
+  try {
+    const response = await makeRequest(options, body);
+    
+    // Cache the token
+    cachedToken = response.access_token;
+    // Set expiry time (subtract 5 minutes for safety)
+    tokenExpiry = now + ((response.expires_in - 300) * 1000);
+    
+    console.log('Token retrieved successfully');
+    return cachedToken;
+  } catch (error) {
+    console.error('Error getting token:', error);
+    throw error;
+  }
+}
+
+/**
+ * Submit a SQL query to DataFabric
+ * @param {string} sqlQuery - SQL query to execute
+ * @returns {Promise<Object>} - Job submission response
+ */
+async function submitQuery(sqlQuery) {
+  // Get credentials
+  const credentials = loadCredentials();
+  
+  // Get token
+  const token = await getToken();
+  
+  // Prepare the request URL
+  const submitUrl = new URL(`${credentials.ionApiUrl}/${credentials.tenant}/DATAFABRIC/compass/v2/jobs/`);
+  
+  const options = {
+    hostname: submitUrl.hostname,
+    port: submitUrl.port || 443,
+    path: submitUrl.pathname,
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'text/plain',
+      'Accept': 'application/json',
+      'Content-Length': Buffer.byteLength(sqlQuery)
+    }
+  };
+  
+  try {
+    console.log('Submitting query:', sqlQuery);
+    const response = await makeRequest(options, sqlQuery);
+    console.log('Query submitted successfully:', response);
+    return response;
+  } catch (error) {
+    console.error('Error submitting query:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check the status of a job
+ * @param {string} queryId - Query ID to check
+ * @returns {Promise<Object>} - Job status
+ */
+async function checkStatus(queryId) {
+  // Get credentials
+  const credentials = loadCredentials();
+  
+  // Get token
+  const token = await getToken();
+  
+  // Prepare the request URL
+  const statusUrl = new URL(`${credentials.ionApiUrl}/${credentials.tenant}/DATAFABRIC/compass/v2/jobs/${queryId}/status/`);
+  
+  const options = {
+    hostname: statusUrl.hostname,
+    port: statusUrl.port || 443,
+    path: statusUrl.pathname,
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  };
+  
+  try {
+    console.log('Checking status for queryId:', queryId);
+    const response = await makeRequest(options);
+    console.log('Status response:', response);
+    return response;
+  } catch (error) {
+    console.error('Error checking status:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get the results of a completed job
+ * @param {string} queryId - Query ID to get results for
+ * @param {number} offset - Result offset
+ * @param {number} limit - Result limit
+ * @returns {Promise<Object>} - Query results
+ */
+async function getResults(queryId, offset = 0, limit = 1000) {
+  // Get credentials
+  const credentials = loadCredentials();
+  
+  // Get token
+  const token = await getToken();
+  
+  // Prepare the request URL
+  const resultsUrl = new URL(`${credentials.ionApiUrl}/${credentials.tenant}/DATAFABRIC/compass/v2/jobs/${queryId}/result/`);
+  resultsUrl.searchParams.append('offset', offset);
+  resultsUrl.searchParams.append('limit', limit);
+  
+  const options = {
+    hostname: resultsUrl.hostname,
+    port: resultsUrl.port || 443,
+    path: resultsUrl.pathname + resultsUrl.search,
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json'
+    }
+  };
+  
+  try {
+    console.log('Getting results for queryId:', queryId);
+    const response = await makeRequest(options);
+    console.log('Results retrieved successfully');
+    return response;
+  } catch (error) {
+    console.error('Error getting results:', error);
+    throw error;
+  }
+}
+
+module.exports = {
+  getToken,
+  submitQuery,
+  checkStatus,
+  getResults
+};
