@@ -4,10 +4,32 @@ const querystring = require('querystring');
 const fs = require('fs');
 const path = require('path');
 
-// Load ION API credentials from file
+// Load ION API credentials from environment variables or file
 function loadCredentials() {
   try {
-    // Path to credentials file
+    // Check if credentials are available as environment variables
+    if (process.env.ION_TENANT && 
+        process.env.ION_SAAK && 
+        process.env.ION_SASK && 
+        process.env.ION_CLIENT_ID && 
+        process.env.ION_CLIENT_SECRET && 
+        process.env.ION_API_URL && 
+        process.env.ION_SSO_URL) {
+      
+      console.log('Using ION API credentials from environment variables');
+      return {
+        tenant: process.env.ION_TENANT,
+        saak: process.env.ION_SAAK,
+        sask: process.env.ION_SASK,
+        clientId: process.env.ION_CLIENT_ID,
+        clientSecret: process.env.ION_CLIENT_SECRET,
+        ionApiUrl: process.env.ION_API_URL,
+        ssoUrl: process.env.ION_SSO_URL
+      };
+    }
+    
+    // Fall back to reading from file
+    console.log('Using ION API credentials from file');
     const credentialsPath = process.env.ION_CREDENTIALS_PATH || 
       path.resolve(__dirname, '../../../../ION_Credentials/IONAPI_CREDENTIALS.ionapi');
     
