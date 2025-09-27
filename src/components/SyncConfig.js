@@ -68,6 +68,8 @@ function SyncConfig() {
   const [syncJobId, setSyncJobId] = useState(null);
   const [syncProgress, setSyncProgress] = useState(0);
   const [syncStats, setSyncStats] = useState(null);
+  const [sqlQuery, setSqlQuery] = useState('');
+  const [showSqlQuery, setShowSqlQuery] = useState(false);
   
   // Form state
   const [formState, setFormState] = useState({
@@ -110,6 +112,8 @@ function SyncConfig() {
     try {
       setLoading(true);
       setError(null);
+      setSqlQuery('');
+      setShowSqlQuery(false);
       
       // Prepare sync options
       const syncOptions = {
@@ -131,7 +135,39 @@ function SyncConfig() {
       // Add custom query if enabled
       if (formState.useCustomQuery && formState.customQuery) {
         syncOptions.sqlQuery = formState.customQuery;
+        setSqlQuery(formState.customQuery);
+      } else {
+        // Generate a preview of the SQL query that will be used
+        let query = `SELECT * FROM wmwhse_taskdetail.taskdetail`;
+        const conditions = [];
+        
+        if (syncOptions.whseid) {
+          conditions.push(`WHSEID = '${syncOptions.whseid}'`);
+        }
+        
+        if (syncOptions.taskType) {
+          conditions.push(`TASKTYPE = '${syncOptions.taskType}'`);
+        }
+        
+        if (syncOptions.startDate) {
+          conditions.push(`ADDDATE >= '${syncOptions.startDate}'`);
+        }
+        
+        if (syncOptions.endDate) {
+          conditions.push(`ADDDATE <= '${syncOptions.endDate}'`);
+        }
+        
+        if (conditions.length > 0) {
+          query += ' WHERE ' + conditions.join(' AND ');
+        }
+        
+        query += ` LIMIT ${syncOptions.maxRecords}`;
+        
+        setSqlQuery(query);
       }
+      
+      // Show the SQL query
+      setShowSqlQuery(true);
       
       // Start sync
       const response = await startSync(syncOptions);
@@ -193,6 +229,8 @@ function SyncConfig() {
     setSyncJobId(null);
     setSyncProgress(0);
     setSyncStats(null);
+    setSqlQuery('');
+    setShowSqlQuery(false);
   };
   
   return (
@@ -328,6 +366,30 @@ function SyncConfig() {
                     fullWidth
                     helperText="Enter a custom SQL query for the DataFabric API"
                   />
+                </Grid>
+              )}
+              
+              {showSqlQuery && (
+                <Grid item xs={12}>
+                  <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f5f5f5' }}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      SQL Query to be executed:
+                    </Typography>
+                    <Box 
+                      component="pre"
+                      sx={{
+                        p: 2,
+                        bgcolor: '#272822',
+                        color: '#f8f8f2',
+                        borderRadius: 1,
+                        overflowX: 'auto',
+                        fontSize: '0.875rem',
+                        fontFamily: '"Roboto Mono", monospace'
+                      }}
+                    >
+                      {sqlQuery}
+                    </Box>
+                  </Paper>
                 </Grid>
               )}
               
