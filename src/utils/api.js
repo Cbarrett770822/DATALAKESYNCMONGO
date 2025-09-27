@@ -26,19 +26,10 @@ export const getIonToken = async () => {
  */
 export const submitQuery = async (options) => {
   try {
-    // Use the simplified endpoint for now to avoid 500 errors
-    const response = await api.post('/submit-query-simple', options);
+    const response = await api.post('/submit-query', options);
     return response.data;
   } catch (error) {
     console.error('Error in submitQuery:', error);
-    
-    // If the simplified endpoint fails, try the original endpoint
-    if (error.response && error.response.status === 404) {
-      console.log('Simplified endpoint not found, trying original endpoint');
-      const response = await api.post('/submit-query', options);
-      return response.data;
-    }
-    
     throw error;
   }
 };
@@ -50,19 +41,10 @@ export const submitQuery = async (options) => {
  */
 export const checkQueryStatus = async (queryId) => {
   try {
-    // Use the simplified endpoint for now to avoid 500 errors
-    const response = await api.get(`/check-status-simple?queryId=${queryId}`);
+    const response = await api.get(`/check-status?queryId=${queryId}`);
     return response.data;
   } catch (error) {
     console.error('Error in checkQueryStatus:', error);
-    
-    // If the simplified endpoint fails, try the original endpoint
-    if (error.response && error.response.status === 404) {
-      console.log('Simplified endpoint not found, trying original endpoint');
-      const response = await api.get(`/check-status?queryId=${queryId}`);
-      return response.data;
-    }
-    
     throw error;
   }
 };
@@ -76,19 +58,10 @@ export const checkQueryStatus = async (queryId) => {
  */
 export const getQueryResults = async (queryId, offset = 0, limit = 1000) => {
   try {
-    // Use the simplified endpoint for now to avoid 500 errors
-    const response = await api.get(`/get-results-simple?queryId=${queryId}&offset=${offset}&limit=${limit}`);
+    const response = await api.get(`/get-results?queryId=${queryId}&offset=${offset}&limit=${limit}`);
     return response.data;
   } catch (error) {
     console.error('Error in getQueryResults:', error);
-    
-    // If the simplified endpoint fails, try the original endpoint
-    if (error.response && error.response.status === 404) {
-      console.log('Simplified endpoint not found, trying original endpoint');
-      const response = await api.get(`/get-results?queryId=${queryId}&offset=${offset}&limit=${limit}`);
-      return response.data;
-    }
-    
     throw error;
   }
 };
@@ -100,19 +73,10 @@ export const getQueryResults = async (queryId, offset = 0, limit = 1000) => {
  */
 export const startSync = async (options) => {
   try {
-    // Use the simplified endpoint for now to avoid 500 errors
-    const response = await api.post('/sync-taskdetail-simple', options);
+    const response = await api.post('/sync-taskdetail', options);
     return response.data;
   } catch (error) {
     console.error('Error in startSync:', error);
-    
-    // If the simplified endpoint fails, try the original endpoint
-    if (error.response && error.response.status === 404) {
-      console.log('Simplified endpoint not found, trying original endpoint');
-      const response = await api.post('/sync-taskdetail', options);
-      return response.data;
-    }
-    
     throw error;
   }
 };

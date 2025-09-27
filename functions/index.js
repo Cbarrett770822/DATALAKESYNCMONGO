@@ -23,7 +23,6 @@ exports.handler = async function(event, context) {
         { name: 'check-status', description: 'Check the status of a query' },
         { name: 'get-results', description: 'Get the results of a query' },
         { name: 'sync-taskdetail', description: 'Sync taskdetail data from DataFabric to MongoDB' },
-        { name: 'sync-taskdetail-simple', description: 'Simplified version of sync-taskdetail for testing' },
         { name: 'check-sync-status', description: 'Check the status of a sync job' },
         { name: 'get-sync-history', description: 'Get sync job history' },
         { name: 'get-taskdetail-stats', description: 'Get taskdetail statistics' }
