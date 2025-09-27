@@ -38,6 +38,11 @@ This application provides a user-friendly interface to synchronize data from Inf
 - [Implementation Plan](IMPLEMENTATION_PLAN.md): Detailed plan for deploying and using the application
 - [Development Plan](WEBAPP_DEVELOPMENT_PLAN.md): Technical overview of the application architecture
 - [User Manual](USER_MANUAL.md): Comprehensive guide for end users
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md): Step-by-step guide for deploying the application
+- [Deployment Troubleshooting](DEPLOYMENT_TROUBLESHOOTING.md): Solutions for common deployment issues
+- [Deployment Summary](DEPLOYMENT_SUMMARY.md): Overview of deployment progress and next steps
+- [Real API Implementation](REAL_API_IMPLEMENTATION.md): Documentation of the real API implementation
+- [Real API Enhancements](REAL_API_ENHANCEMENTS.md): Details of API error handling and retry mechanisms
 
 ## Getting Started
 
@@ -78,19 +83,25 @@ This application provides a user-friendly interface to synchronize data from Inf
 
 ### Netlify Deployment
 
-1. Build the application:
+1. Use the deployment script:
    ```
-   npm run build
+   deploy-to-netlify.bat
    ```
+   This script will guide you through the deployment process.
 
-2. Deploy to Netlify:
+2. Alternatively, deploy manually:
+   - Build the application: `npm run build`
    - Connect your GitHub repository to Netlify
    - Configure build settings:
-     - Build command: `npm run build`
+     - Build command: `chmod +x build.sh && ./build.sh`
      - Publish directory: `build`
      - Functions directory: `functions`
-   - Configure environment variables in Netlify dashboard (see [NETLIFY_ENV_SETUP.md](NETLIFY_ENV_SETUP.md) for details)
+   - Configure environment variables in Netlify dashboard
    - Deploy the application
+
+3. After deployment:
+   - Use the debug page at `/debug.html` to verify API connections
+   - Check Netlify function logs for any issues
 
 ### Environment Variables
 
