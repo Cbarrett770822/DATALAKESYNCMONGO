@@ -267,7 +267,7 @@ function SyncConfig() {
                     label="Start Date"
                     value={formState.startDate}
                     onChange={handleDateChange('startDate')}
-                    renderInput={(params) => <TextField {...params} fullWidth />}
+                    slotProps={{ textField: { fullWidth: true } }}
                   />
                 </LocalizationProvider>
               </Grid>
@@ -278,7 +278,7 @@ function SyncConfig() {
                     label="End Date"
                     value={formState.endDate}
                     onChange={handleDateChange('endDate')}
-                    renderInput={(params) => <TextField {...params} fullWidth />}
+                    slotProps={{ textField: { fullWidth: true } }}
                   />
                 </LocalizationProvider>
               </Grid>
