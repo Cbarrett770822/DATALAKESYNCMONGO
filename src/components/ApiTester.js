@@ -65,11 +65,17 @@ function ApiTester() {
       startPolling(response.queryId);
     } catch (error) {
       console.error('Error submitting query:', error);
+      
+      // Extract detailed error information
+      const errorDetails = error.response?.data?.details || error.response?.data?.error || error.message || 'Failed to submit query';
+      const statusCode = error.response?.status || 'Unknown';
+      
       setQueryStatus({
         loading: false,
         success: false,
-        error: error.message || 'Failed to submit query',
-        queryId: null
+        error: `API Error (${statusCode}): ${errorDetails}`,
+        queryId: null,
+        rawError: error
       });
     }
   };
@@ -103,11 +109,17 @@ function ApiTester() {
         }
       } catch (error) {
         console.error('Error checking status:', error);
+        
+        // Extract detailed error information
+        const errorDetails = error.response?.data?.details || error.response?.data?.error || error.message || 'Failed to check status';
+        const statusCode = error.response?.status || 'Unknown';
+        
         setJobStatus({
           loading: false,
           status: 'error',
           progress: 0,
-          error: error.message || 'Failed to check status'
+          error: `API Error (${statusCode}): ${errorDetails}`,
+          rawError: error
         });
         
         clearInterval(interval);
@@ -133,11 +145,17 @@ function ApiTester() {
       });
     } catch (error) {
       console.error('Error fetching results:', error);
+      
+      // Extract detailed error information
+      const errorDetails = error.response?.data?.details || error.response?.data?.error || error.message || 'Failed to fetch results';
+      const statusCode = error.response?.status || 'Unknown';
+      
       setResultsStatus({
         loading: false,
         success: false,
-        error: error.message || 'Failed to fetch results',
-        data: null
+        error: `API Error (${statusCode}): ${errorDetails}`,
+        data: null,
+        rawError: error
       });
     }
   };
@@ -217,9 +235,21 @@ function ApiTester() {
             </AccordionSummary>
             <AccordionDetails>
               {queryStatus.error ? (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {queryStatus.error}
-                </Alert>
+                <>
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {queryStatus.error}
+                  </Alert>
+                  {queryStatus.rawError && queryStatus.rawError.response && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2">Response Details:</Typography>
+                      <Paper sx={{ p: 1, bgcolor: '#f5f5f5', maxHeight: '200px', overflow: 'auto' }}>
+                        <pre style={{ margin: 0, fontFamily: '"Roboto Mono", monospace', fontSize: '0.75rem' }}>
+                          {formatJson(queryStatus.rawError.response.data)}
+                        </pre>
+                      </Paper>
+                    </Box>
+                  )}
+                </>
               ) : queryStatus.success ? (
                 <Alert severity="success" sx={{ mb: 2 }}>
                   Query submitted successfully! Query ID: {queryStatus.queryId}
@@ -257,9 +287,21 @@ function ApiTester() {
             </AccordionSummary>
             <AccordionDetails>
               {jobStatus.error ? (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {jobStatus.error}
-                </Alert>
+                <>
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {jobStatus.error}
+                  </Alert>
+                  {jobStatus.rawError && jobStatus.rawError.response && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2">Response Details:</Typography>
+                      <Paper sx={{ p: 1, bgcolor: '#f5f5f5', maxHeight: '200px', overflow: 'auto' }}>
+                        <pre style={{ margin: 0, fontFamily: '"Roboto Mono", monospace', fontSize: '0.75rem' }}>
+                          {formatJson(jobStatus.rawError.response.data)}
+                        </pre>
+                      </Paper>
+                    </Box>
+                  )}
+                </>
               ) : jobStatus.status ? (
                 <>
                   <Alert 
@@ -308,9 +350,21 @@ function ApiTester() {
             </AccordionSummary>
             <AccordionDetails>
               {resultsStatus.error ? (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {resultsStatus.error}
-                </Alert>
+                <>
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {resultsStatus.error}
+                  </Alert>
+                  {resultsStatus.rawError && resultsStatus.rawError.response && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2">Response Details:</Typography>
+                      <Paper sx={{ p: 1, bgcolor: '#f5f5f5', maxHeight: '200px', overflow: 'auto' }}>
+                        <pre style={{ margin: 0, fontFamily: '"Roboto Mono", monospace', fontSize: '0.75rem' }}>
+                          {formatJson(resultsStatus.rawError.response.data)}
+                        </pre>
+                      </Paper>
+                    </Box>
+                  )}
+                </>
               ) : resultsStatus.data ? (
                 <>
                   <Alert severity="success" sx={{ mb: 2 }}>
