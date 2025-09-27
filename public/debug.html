@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DataLake Sync API Debug</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    h1, h2, h3 {
+      color: #1976d2;
+    }
+    button {
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    button:hover {
+      background-color: #1565c0;
+    }
+    pre {
+      background-color: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      overflow: auto;
+      max-height: 500px;
+      border: 1px solid #ddd;
+    }
+    .error {
+      color: #d32f2f;
+      background-color: #ffebee;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      border: 1px solid #ffcdd2;
+    }
+    .success {
+      color: #388e3c;
+      background-color: #e8f5e9;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      border: 1px solid #c8e6c9;
+    }
+    .container {
+      margin-bottom: 30px;
+    }
+  </style>
+</head>
+<body>
+  <h1>DataLake Sync API Debug</h1>
+  
+  <div class="container">
+    <h2>Debug Information</h2>
+    <button id="getDebugInfo">Get Debug Info</button>
+    <div id="debugResult"></div>
+  </div>
+  
+  <div class="container">
+    <h2>Test API Endpoints</h2>
+    
+    <h3>Submit Query</h3>
+    <button id="testSubmitQuery">Test Submit Query</button>
+    <div id="submitQueryResult"></div>
+    
+    <h3>Check Status</h3>
+    <input type="text" id="queryId" placeholder="Query ID">
+    <button id="testCheckStatus">Test Check Status</button>
+    <div id="checkStatusResult"></div>
+    
+    <h3>Get Results</h3>
+    <input type="text" id="resultsQueryId" placeholder="Query ID">
+    <button id="testGetResults">Test Get Results</button>
+    <div id="getResultsResult"></div>
+  </div>
+  
+  <script>
+    // Helper function to format JSON
+    function formatJson(json) {
+      return JSON.stringify(json, null, 2);
+    }
+    
+    // Helper function to display results
+    function displayResult(elementId, data, isError = false) {
+      const element = document.getElementById(elementId);
+      
+      if (isError) {
+        element.innerHTML = `
+          <div class="error">
+            <strong>Error:</strong> ${data.message || 'Unknown error'}
+          </div>
+          <pre>${formatJson(data)}</pre>
+        `;
+      } else {
+        element.innerHTML = `
+          <div class="success">
+            <strong>Success!</strong>
+          </div>
+          <pre>${formatJson(data)}</pre>
+        `;
+      }
+    }
+    
+    // Get base URL
+    const baseUrl = `${window.location.protocol}//${window.location.host}/.netlify/functions`;
+    
+    // Debug Info
+    document.getElementById('getDebugInfo').addEventListener('click', async () => {
+      try {
+        const response = await fetch(`${baseUrl}/debug-info`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          displayResult('debugResult', data);
+        } else {
+          displayResult('debugResult', data, true);
+        }
+      } catch (error) {
+        displayResult('debugResult', { message: error.message, stack: error.stack }, true);
+      }
+    });
+    
+    // Submit Query
+    document.getElementById('testSubmitQuery').addEventListener('click', async () => {
+      try {
+        const response = await fetch(`${baseUrl}/submit-query`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            sqlQuery: 'SELECT * FROM wmwhse_taskdetail.taskdetail LIMIT 10'
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          displayResult('submitQueryResult', data);
+          // Auto-fill query ID fields
+          if (data.queryId) {
+            document.getElementById('queryId').value = data.queryId;
+            document.getElementById('resultsQueryId').value = data.queryId;
+          }
+        } else {
+          displayResult('submitQueryResult', data, true);
+        }
+      } catch (error) {
+        displayResult('submitQueryResult', { message: error.message, stack: error.stack }, true);
+      }
+    });
+    
+    // Check Status
+    document.getElementById('testCheckStatus').addEventListener('click', async () => {
+      try {
+        const queryId = document.getElementById('queryId').value;
+        
+        if (!queryId) {
+          displayResult('checkStatusResult', { message: 'Query ID is required' }, true);
+          return;
+        }
+        
+        const response = await fetch(`${baseUrl}/check-status?queryId=${queryId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          displayResult('checkStatusResult', data);
+        } else {
+          displayResult('checkStatusResult', data, true);
+        }
+      } catch (error) {
+        displayResult('checkStatusResult', { message: error.message, stack: error.stack }, true);
+      }
+    });
+    
+    // Get Results
+    document.getElementById('testGetResults').addEventListener('click', async () => {
+      try {
+        const queryId = document.getElementById('resultsQueryId').value;
+        
+        if (!queryId) {
+          displayResult('getResultsResult', { message: 'Query ID is required' }, true);
+          return;
+        }
+        
+        const response = await fetch(`${baseUrl}/get-results?queryId=${queryId}&offset=0&limit=10`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          displayResult('getResultsResult', data);
+        } else {
+          displayResult('getResultsResult', data, true);
+        }
+      } catch (error) {
+        displayResult('getResultsResult', { message: error.message, stack: error.stack }, true);
+      }
+    });
+  </script>
+</body>
+</html>

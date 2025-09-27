@@ -7,35 +7,80 @@ const path = require('path');
 // Load ION API credentials from environment variables or file
 function loadCredentials() {
   try {
+    // Log environment for debugging
+    console.log('Current directory:', __dirname);
+    console.log('NODE_ENV:', process.env.NODE_ENV);
+    console.log('NETLIFY_ENV:', process.env.NETLIFY_ENV || 'Not set');
+    console.log('CONTEXT:', process.env.CONTEXT || 'Not set');
+    
     // Check if credentials are available as environment variables
     if (process.env.ION_TENANT && 
         process.env.ION_SAAK && 
         process.env.ION_SASK && 
         process.env.ION_CLIENT_ID && 
-        process.env.ION_CLIENT_SECRET && 
-        process.env.ION_API_URL && 
-        process.env.ION_SSO_URL) {
+        process.env.ION_CLIENT_SECRET) {
       
       console.log('Using ION API credentials from environment variables');
+      
+      // Default API URLs if not provided
+      const ionApiUrl = process.env.ION_API_URL || 'https://mingle-ionapi.inforcloudsuite.com';
+      const ssoUrl = process.env.ION_SSO_URL || `https://mingle-sso.inforcloudsuite.com:443/${process.env.ION_TENANT}/as/`;
+      
       return {
         tenant: process.env.ION_TENANT,
         saak: process.env.ION_SAAK,
         sask: process.env.ION_SASK,
         clientId: process.env.ION_CLIENT_ID,
         clientSecret: process.env.ION_CLIENT_SECRET,
-        ionApiUrl: process.env.ION_API_URL,
-        ssoUrl: process.env.ION_SSO_URL
+        ionApiUrl: ionApiUrl,
+        ssoUrl: ssoUrl
       };
     }
     
-    // Fall back to reading from file
-    console.log('Using ION API credentials from file');
-    const credentialsPath = process.env.ION_CREDENTIALS_PATH || 
-      path.resolve(__dirname, '../../../../ION_Credentials/IONAPI_CREDENTIALS.ionapi');
+    // Try different paths for credentials file
+    console.log('Trying to load ION API credentials from file');
     
-    // Read and parse credentials
-    const credentialsData = fs.readFileSync(credentialsPath, 'utf8');
+    // Possible paths for credentials file
+    const possiblePaths = [
+      // Path from environment variable
+      process.env.ION_CREDENTIALS_PATH,
+      
+      // Common paths in different environments
+      path.resolve(__dirname, '../../ION_Credentials/IONAPI_CREDENTIALS.ionapi'),
+      path.resolve(__dirname, '../../../ION_Credentials/IONAPI_CREDENTIALS.ionapi'),
+      path.resolve(__dirname, '../../../../ION_Credentials/IONAPI_CREDENTIALS.ionapi'),
+      
+      // Netlify-specific paths
+      path.resolve('/opt/build/repo/ION_Credentials/IONAPI_CREDENTIALS.ionapi'),
+      path.resolve('/var/task/ION_Credentials/IONAPI_CREDENTIALS.ionapi')
+    ].filter(Boolean); // Filter out undefined paths
+    
+    // Try each path until we find a valid credentials file
+    let credentialsData = null;
+    let credentialsPath = null;
+    
+    for (const testPath of possiblePaths) {
+      try {
+        console.log('Trying credentials path:', testPath);
+        if (fs.existsSync(testPath)) {
+          credentialsData = fs.readFileSync(testPath, 'utf8');
+          credentialsPath = testPath;
+          console.log('Found credentials file at:', credentialsPath);
+          break;
+        }
+      } catch (pathError) {
+        console.log('Error checking path:', testPath, pathError.message);
+      }
+    }
+    
+    if (!credentialsData) {
+      throw new Error('Could not find credentials file in any of the expected locations');
+    }
+    
+    // Parse credentials
     const credentials = JSON.parse(credentialsData);
+    
+    console.log('Successfully loaded credentials from file:', credentialsPath);
     
     return {
       tenant: credentials.ti,
@@ -43,12 +88,12 @@ function loadCredentials() {
       sask: credentials.sask,
       clientId: credentials.ci,
       clientSecret: credentials.cs,
-      ionApiUrl: credentials.iu,
-      ssoUrl: credentials.pu
+      ionApiUrl: credentials.iu || 'https://mingle-ionapi.inforcloudsuite.com',
+      ssoUrl: credentials.pu || `https://mingle-sso.inforcloudsuite.com:443/${credentials.ti}/as/`
     };
   } catch (error) {
     console.error('Error loading ION API credentials:', error);
-    throw new Error('Failed to load ION API credentials');
+    throw new Error(`Failed to load ION API credentials: ${error.message}`);
   }
 }
 

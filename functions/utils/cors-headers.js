@@ -57,16 +57,30 @@ const successResponse = (data, statusCode = 200) => {
  * @param {string} message - Error message
  * @param {string} details - Error details
  * @param {number} statusCode - HTTP status code (default: 500)
+ * @param {Object} additionalInfo - Additional error information
  * @returns {Object} Error response with CORS headers
  */
-const errorResponse = (message, details = null, statusCode = 500) => {
+const errorResponse = (message, details = null, statusCode = 500, additionalInfo = null) => {
+  // Include debug information in development environments
+  const includeDebugInfo = process.env.NODE_ENV !== 'production';
+  
+  const errorBody = {
+    error: message,
+    details: details || 'No additional details'
+  };
+  
+  // Add timestamp
+  errorBody.timestamp = new Date().toISOString();
+  
+  // Add additional info if provided and in development
+  if (includeDebugInfo && additionalInfo) {
+    errorBody.debug = additionalInfo;
+  }
+  
   return {
     statusCode,
     headers: corsHeaders,
-    body: JSON.stringify({
-      error: message,
-      details: details || 'No additional details'
-    })
+    body: JSON.stringify(errorBody)
   };
 };
 
