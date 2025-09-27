@@ -2,6 +2,12 @@
 
 A web application to synchronize data from Infor WMS DataLake to MongoDB Atlas.
 
+## Overview
+
+This application provides a user-friendly interface to synchronize data from Infor WMS DataLake to MongoDB Atlas. It allows users to configure, monitor, and trigger synchronization jobs through a web browser.
+
+![Dashboard Screenshot](https://via.placeholder.com/800x450.png?text=WMS+DataLake+Sync+Dashboard)
+
 ## Features
 
 - **Data Synchronization**: Sync taskdetail data from Infor WMS DataLake to MongoDB Atlas
@@ -27,6 +33,12 @@ A web application to synchronize data from Infor WMS DataLake to MongoDB Atlas.
 - JWT authentication
 - Infor ION API integration
 
+## Documentation
+
+- [Implementation Plan](IMPLEMENTATION_PLAN.md): Detailed plan for deploying and using the application
+- [Development Plan](WEBAPP_DEVELOPMENT_PLAN.md): Technical overview of the application architecture
+- [User Manual](USER_MANUAL.md): Comprehensive guide for end users
+
 ## Getting Started
 
 ### Prerequisites
@@ -40,8 +52,8 @@ A web application to synchronize data from Infor WMS DataLake to MongoDB Atlas.
 
 1. Clone the repository:
    ```
-   git clone <repository-url>
-   cd webapp
+   git clone https://github.com/Cbarrett770822/DATALAKESYNC.git
+   cd DATALAKESYNC
    ```
 
 2. Install dependencies:
@@ -79,59 +91,6 @@ A web application to synchronize data from Infor WMS DataLake to MongoDB Atlas.
      - Functions directory: `functions`
    - Configure environment variables in Netlify dashboard
    - Deploy the application
-
-## Usage
-
-### Dashboard
-
-The Dashboard provides an overview of the sync status and recent sync jobs. It also offers quick actions to start a new sync or view sync history.
-
-### Sync Configuration
-
-The Sync Configuration page allows you to configure and start a sync job:
-
-1. Select the warehouse ID
-2. Choose a task type (optional)
-3. Set date range filters (optional)
-4. Configure batch size and max records
-5. Use custom SQL query if needed
-6. Click "Start Sync" to begin the synchronization process
-
-### Sync History
-
-The Sync History page displays a list of all sync jobs with their status, progress, and results. You can filter the list by job type and status.
-
-### Settings
-
-The Settings page allows you to configure application settings:
-
-1. Connection settings: MongoDB URI and ION Credentials Path
-2. Sync settings: Default warehouse, batch size, and max records
-3. Schedule settings: Enable scheduled sync and set cron expression
-4. Notification settings: Configure email notifications
-
-## Project Structure
-
-```
-webapp/
-├── functions/              # Netlify serverless functions
-│   ├── models/             # MongoDB schemas
-│   ├── utils/              # Utility functions
-│   ├── get-token.js        # Get ION API token
-│   ├── submit-query.js     # Submit query to DataFabric
-│   └── ...                 # Other API endpoints
-├── public/                 # Static files
-├── src/
-│   ├── components/         # React components
-│   ├── hooks/              # Custom React hooks
-│   ├── store/              # Redux store
-│   ├── utils/              # Utility functions
-│   ├── App.js              # Main App component
-│   └── index.js            # Entry point
-├── .env                    # Environment variables
-├── netlify.toml            # Netlify configuration
-└── package.json            # Project dependencies
-```
 
 ## License
 
