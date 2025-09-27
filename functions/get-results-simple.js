@@ -1,5 +1,9 @@
 // Simplified version of get-results function for testing
 const { corsHeaders } = require('./utils/cors-headers');
+const ionApi = require('./utils/ion-api');
+
+// Flag to control whether to use real API or mock data
+const USE_REAL_API = process.env.USE_REAL_API === 'true';
 
 exports.handler = async function(event, context) {
   // Handle OPTIONS request (preflight)
@@ -34,6 +38,34 @@ exports.handler = async function(event, context) {
     console.log('Offset:', offset);
     console.log('Limit:', limit);
     
+    // Check if this is a mock query ID
+    const isMockQuery = queryId.startsWith('mock-query-');
+    
+    // Try to use the real API if enabled and not a mock query
+    if (USE_REAL_API && !isMockQuery) {
+      try {
+        console.log('Attempting to use real API for results...');
+        const response = await ionApi.getResults(queryId, offset, limit);
+        
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            queryId: queryId,
+            offset: offset,
+            limit: limit,
+            total: response.total || response.count || 0,
+            results: response.results || response.data || [],
+            message: 'Results retrieved successfully (real API)',
+            usingRealApi: true
+          })
+        };
+      } catch (apiError) {
+        console.error('Error using real API for results, falling back to mock:', apiError);
+        // Fall back to mock data
+      }
+    }
+    
     // Generate mock results
     const totalRecords = 1000;
     const results = [];
@@ -60,7 +92,7 @@ exports.handler = async function(event, context) {
       });
     }
     
-    // Return success response
+    // Return mock success response
     return {
       statusCode: 200,
       headers: corsHeaders,
@@ -69,7 +101,9 @@ exports.handler = async function(event, context) {
         offset: offset,
         limit: limit,
         total: totalRecords,
-        results: results
+        results: results,
+        message: 'Results retrieved successfully (mock)',
+        usingRealApi: false
       })
     };
   } catch (error) {

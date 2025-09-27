@@ -1,5 +1,10 @@
 // Simplified version of submit-query function for testing
 const { corsHeaders } = require('./utils/cors-headers');
+const ionApi = require('./utils/ion-api');
+const queryBuilder = require('./utils/query-builder');
+
+// Flag to control whether to use real API or mock data
+const USE_REAL_API = process.env.USE_REAL_API === 'true';
 
 exports.handler = async function(event, context) {
   // Handle OPTIONS request (preflight)
@@ -32,7 +37,25 @@ exports.handler = async function(event, context) {
     }
     
     // Get the SQL query
-    const sqlQuery = requestBody.sqlQuery || '';
+    let sqlQuery = requestBody.sqlQuery || '';
+    
+    // If no SQL query provided but we have filter parameters, build a query
+    if (!sqlQuery && requestBody.whseid) {
+      const queryOptions = {
+        whseid: requestBody.whseid,
+        startDate: requestBody.startDate,
+        endDate: requestBody.endDate,
+        taskType: requestBody.taskType,
+        limit: requestBody.limit || 1000
+      };
+      
+      try {
+        sqlQuery = queryBuilder.buildTaskdetailQuery(queryOptions);
+      } catch (queryBuildError) {
+        console.error('Error building query:', queryBuildError);
+        // Continue with empty query, will be caught below
+      }
+    }
     
     if (!sqlQuery) {
       return {
@@ -40,24 +63,47 @@ exports.handler = async function(event, context) {
         headers: corsHeaders,
         body: JSON.stringify({
           error: 'SQL query is required',
-          details: 'Please provide a SQL query'
+          details: 'Please provide a SQL query or valid filter parameters'
         })
       };
     }
     
     console.log('SQL query:', sqlQuery);
     
+    // Try to use the real API if enabled
+    if (USE_REAL_API) {
+      try {
+        console.log('Attempting to use real API...');
+        const response = await ionApi.submitQuery(sqlQuery);
+        
+        return {
+          statusCode: 200,
+          headers: corsHeaders,
+          body: JSON.stringify({
+            queryId: response.id || response.queryId,
+            status: response.status || 'submitted',
+            message: 'Query submitted successfully (real API)',
+            usingRealApi: true
+          })
+        };
+      } catch (apiError) {
+        console.error('Error using real API, falling back to mock:', apiError);
+        // Fall back to mock data
+      }
+    }
+    
     // Generate a mock query ID
     const queryId = 'mock-query-' + Date.now();
     
-    // Return success response
+    // Return mock success response
     return {
       statusCode: 200,
       headers: corsHeaders,
       body: JSON.stringify({
         queryId: queryId,
         status: 'submitted',
-        message: 'Query submitted successfully (mock)'
+        message: 'Query submitted successfully (mock)',
+        usingRealApi: false
       })
     };
   } catch (error) {
