@@ -15,7 +15,7 @@ import {
   LinearProgress
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { submitQuery, checkStatus, getResults } from '../utils/api';
+import { submitQuery, checkQueryStatus as checkStatus, getQueryResults as getResults } from '../utils/api';
 
 function ApiTester() {
   // State for SQL query
