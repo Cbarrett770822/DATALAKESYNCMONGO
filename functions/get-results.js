@@ -24,18 +24,30 @@ exports.handler = async function(event, context) {
     console.log('DIRECT FETCH: Bypassing status check and directly fetching results for debugging');
     console.log('Query parameters:', { queryId, offset, limit });
     
-    try {
-      // Get the token
-      const token = await ionApi.getToken();
-      console.log('Token obtained successfully');
-      
-      // Get credentials directly
-      const credentials = require('./utils/ion-api').loadCredentials();
-      console.log('Credentials loaded:', {
-        tenant: credentials.tenant,
-        hasApiUrl: !!credentials.ionApiUrl,
-        urlLength: credentials.ionApiUrl?.length
-      });
+    // First check the status to get metadata
+    console.log('Checking status to get metadata before fetching results');
+    const statusResponse = await ionApi.checkStatus(queryId);
+    console.log('Status response for results:', statusResponse);
+    
+    // Check if we have column definitions and other metadata in the status response
+    let columns = [];
+    let rowCount = 0;
+    let location = null;
+    
+    if (statusResponse.columns) {
+      console.log(`Using column definitions from status response: ${statusResponse.columns.length} columns`);
+      columns = statusResponse.columns;
+    }
+    
+    if (statusResponse.rowCount) {
+      console.log(`Row count from status response: ${statusResponse.rowCount}`);
+      rowCount = statusResponse.rowCount;
+    }
+    
+    if (statusResponse.location) {
+      console.log(`Results location from status response: ${statusResponse.location}`);
+      location = statusResponse.location;
+    }
       
       // Prepare the direct request URL
       const resultsUrl = new URL(`${credentials.ionApiUrl}/${credentials.tenant}/DATAFABRIC/compass/v2/jobs/${queryId}/result/`);
@@ -112,26 +124,64 @@ exports.handler = async function(event, context) {
         } else {
           console.log('Direct response keys:', Object.keys(directResponse));
         }
-      }
     } catch (directError) {
       console.error('Direct fetch error:', directError);
     }
     
-    // Now proceed with the normal flow
+    // First check the status to get metadata
+    console.log('Checking status to get metadata before fetching results');
+    const statusResponse = await ionApi.checkStatus(queryId);
+    console.log('Status response for results:', statusResponse);
+    
+    // Check if we have column definitions and other metadata in the status response
+    let columns = [];
+    let rowCount = 0;
+    let location = null;
+    
+    if (statusResponse.columns) {
+      console.log(`Using column definitions from status response: ${statusResponse.columns.length} columns`);
+      columns = statusResponse.columns;
+    }
+    
+    if (statusResponse.rowCount) {
+      console.log(`Row count from status response: ${statusResponse.rowCount}`);
+      rowCount = statusResponse.rowCount;
+    }
+    
+    if (statusResponse.location) {
+      console.log(`Results location from status response: ${statusResponse.location}`);
+      location = statusResponse.location;
+    }
+    
+    // Get the results using the ION API module
     const response = await ionApi.getResults(queryId, offset, limit);
     
     // Add debug information
     console.log('[DEBUG] Results response:', JSON.stringify(response, null, 2));
     
-    // Check if the response contains an error
-    if (response && response.error === true) {
-      console.error('[DEBUG] Error in results response:', response.message);
-      return errorResponse(
-        'Failed to get results', 
-        response.message || 'Unknown error', 
-        500, 
-        response.details
-      );
+    // If we got an empty response but have column definitions from status, use those
+    if ((!response || !response.rows) && columns.length > 0) {
+      console.log('Using metadata from status response since results response is empty');
+      
+      // Create a synthetic response with the metadata from status
+      const syntheticResponse = {
+        columns: columns,
+        rows: [],
+        total: rowCount,
+        message: 'Results created from status metadata'
+      };
+      
+      // Return the synthetic response
+      return successResponse({
+        queryId: queryId,
+        offset: offset,
+        limit: limit,
+        total: rowCount,
+        columns: columns,
+        rows: [],
+        location: location,
+        fromStatus: true
+      });
     }
     
     // Format the response based on the structure returned by the API

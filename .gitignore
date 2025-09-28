@@ -25,3 +25,7 @@ yarn-error.log*
 # IDE
 /.idea
 /.vscode
+
+# credentials
+**/ION_Credentials/*.ionapi
+**/functions/utils/hardcoded-credentials.js
