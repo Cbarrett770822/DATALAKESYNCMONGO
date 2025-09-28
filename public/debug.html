@@ -85,7 +85,7 @@
     <h2>Test API Endpoints</h2>
     
     <h3>Submit Query</h3>
-    <textarea id="sqlQuery" rows="4" style="width: 100%; margin-bottom: 10px;">SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 100</textarea>
+    <textarea id="sqlQuery" rows="4" style="width: 100%; margin-bottom: 10px;">SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 1</textarea>
     <div style="margin-bottom: 10px;">
       <button id="resetQuery" style="background-color: #4caf50;">Reset to Working Query</button>
     </div>
@@ -110,7 +110,7 @@
     }
     
     // Default working query - this format is confirmed to work with DataFabric
-    const DEFAULT_WORKING_QUERY = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 100';
+    const DEFAULT_WORKING_QUERY = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 1';
     
     // Helper function to display results
     function displayResult(elementId, data, isError = false) {
