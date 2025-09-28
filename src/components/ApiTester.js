@@ -145,13 +145,60 @@ function ApiTester() {
       setResultsStatus({ loading: true, success: false, error: null, data: null });
       
       const resultsResponse = await getResults(queryId);
+      console.log('Results response received:', resultsResponse);
       
-      setResultsStatus({
-        loading: false,
-        success: true,
-        error: null,
-        data: resultsResponse
-      });
+      // Check if we have data in the response
+      if (resultsResponse) {
+        // If we have columns from the status response, use them
+        if (resultsResponse.columns && resultsResponse.columns.length > 0) {
+          console.log(`Found ${resultsResponse.columns.length} columns in the response`);
+        }
+        
+        // If we have rows but they're empty, check if we have data in the status response
+        if (resultsResponse.rows && resultsResponse.rows.length === 0 && resultsResponse.fromStatus) {
+          console.log('No rows in results, but we have metadata from status');
+        }
+        
+        // Create a standardized response format
+        const standardizedResponse = {
+          queryId: queryId,
+          total: resultsResponse.total || resultsResponse.rowCount || 0,
+          offset: resultsResponse.offset || 0,
+          limit: resultsResponse.limit || 1000,
+          columns: resultsResponse.columns || [],
+          // Handle different result formats
+          results: resultsResponse.rows || resultsResponse.results || [],
+          // Add additional metadata
+          location: resultsResponse.location || null,
+          fromStatus: resultsResponse.fromStatus || false,
+          message: resultsResponse.message || null
+        };
+        
+        console.log('Standardized response:', standardizedResponse);
+        
+        setResultsStatus({
+          loading: false,
+          success: true,
+          error: null,
+          data: standardizedResponse
+        });
+      } else {
+        // Handle empty response
+        setResultsStatus({
+          loading: false,
+          success: true,
+          error: null,
+          data: {
+            queryId: queryId,
+            total: 0,
+            offset: 0,
+            limit: 1000,
+            columns: [],
+            results: [],
+            message: 'No results returned from API'
+          }
+        });
+      }
     } catch (error) {
       console.error('Error fetching results:', error);
       
@@ -382,7 +429,12 @@ function ApiTester() {
               ) : resultsStatus.data ? (
                 <>
                   <Alert severity="success" sx={{ mb: 2 }}>
-                    Retrieved {resultsStatus.data.results?.length || 0} records successfully!
+                    {resultsStatus.data.results?.length > 0 ? 
+                      `Retrieved ${resultsStatus.data.results.length} records successfully!` : 
+                      resultsStatus.data.columns?.length > 0 ? 
+                        `Query completed successfully! Retrieved column definitions for ${resultsStatus.data.columns.length} columns.` :
+                        'Query completed successfully!'
+                    }
                   </Alert>
                   
                   <Box sx={{ mt: 2 }}>
@@ -414,22 +466,59 @@ function ApiTester() {
                       </Grid>
                     </Grid>
                     
+                    {resultsStatus.data.columns && resultsStatus.data.columns.length > 0 && (
+                      <>
+                        <Typography variant="subtitle2" sx={{ mt: 2 }}>Column Definitions:</Typography>
+                        <Paper sx={{ p: 2, bgcolor: '#f5f5f5', maxHeight: '200px', overflow: 'auto', mb: 2 }}>
+                          <Grid container spacing={1}>
+                            {resultsStatus.data.columns.slice(0, 20).map((column, index) => (
+                              <Grid item xs={6} sm={4} md={3} key={index}>
+                                <Paper sx={{ p: 1, display: 'flex', flexDirection: 'column' }}>
+                                  <Typography variant="body2" fontWeight="bold">{column.name}</Typography>
+                                  <Typography variant="caption" color="text.secondary">{column.datatype}</Typography>
+                                </Paper>
+                              </Grid>
+                            ))}
+                          </Grid>
+                          {resultsStatus.data.columns.length > 20 && (
+                            <Typography variant="caption" sx={{ mt: 1, display: 'block', textAlign: 'center' }}>
+                              Showing 20 of {resultsStatus.data.columns.length} columns
+                            </Typography>
+                          )}
+                        </Paper>
+                      </>
+                    )}
+                    
                     <Divider sx={{ my: 2 }} />
                     
                     <Typography variant="subtitle2">Results Data:</Typography>
-                    <Paper 
-                      sx={{ 
-                        p: 2, 
-                        bgcolor: '#272822', 
-                        color: '#f8f8f2',
-                        maxHeight: '400px',
-                        overflow: 'auto'
-                      }}
-                    >
-                      <pre style={{ margin: 0, fontFamily: '"Roboto Mono", monospace', fontSize: '0.875rem' }}>
-                        {formatJson(resultsStatus.data.results)}
-                      </pre>
-                    </Paper>
+                    {resultsStatus.data.results && resultsStatus.data.results.length > 0 ? (
+                      <Paper 
+                        sx={{ 
+                          p: 2, 
+                          bgcolor: '#272822', 
+                          color: '#f8f8f2',
+                          maxHeight: '400px',
+                          overflow: 'auto'
+                        }}
+                      >
+                        <pre style={{ margin: 0, fontFamily: '"Roboto Mono", monospace', fontSize: '0.875rem' }}>
+                          {formatJson(resultsStatus.data.results)}
+                        </pre>
+                      </Paper>
+                    ) : (
+                      <Paper sx={{ p: 2, bgcolor: '#f5f5f5', textAlign: 'center' }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {resultsStatus.data.message || 'No results returned from the query.'}
+                          {resultsStatus.data.fromStatus && ' Results metadata was retrieved from the status response.'}
+                        </Typography>
+                        {resultsStatus.data.columns && resultsStatus.data.columns.length > 0 && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            The query returned column definitions but no rows. This could be because the query matched no records.
+                          </Typography>
+                        )}
+                      </Paper>
+                    )}
                   </Box>
                 </>
               ) : (
