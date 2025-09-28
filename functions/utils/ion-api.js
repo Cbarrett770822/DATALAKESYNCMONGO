@@ -106,8 +106,13 @@ function loadCredentials() {
     
     // Last resort: try to use hardcoded credentials if available
     if (hardcodedCredentials && typeof hardcodedCredentials.getHardcodedCredentials === 'function') {
-      console.log('FALLBACK: Using hardcoded credentials (FOR TESTING ONLY)');
-      return hardcodedCredentials.getHardcodedCredentials();
+      try {
+        console.log('FALLBACK: Using hardcoded credentials (FOR TESTING ONLY)');
+        return hardcodedCredentials.getHardcodedCredentials();
+      } catch (credError) {
+        console.error('Error using hardcoded credentials:', credError.message);
+        throw new Error(`Failed to use hardcoded credentials: ${credError.message}`);
+      }
     }
     
     throw new Error(`Failed to load ION API credentials: ${error.message}`);
