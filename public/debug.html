@@ -161,7 +161,7 @@
           let statusClass = 'info';
           let statusMessage = 'Query status: ' + data.status;
           
-          if (data.status === 'COMPLETED') {
+          if (data.status === 'COMPLETED' || data.status === 'FINISHED') {
             statusClass = 'success';
             statusMessage = 'Query completed successfully! Getting results...';
           } else if (data.status === 'FAILED') {
@@ -182,14 +182,17 @@
           if (data.status === 'RUNNING') {
             console.log('Query still running, will check again in 2 seconds');
             setTimeout(() => checkQueryStatus(queryId), 2000);
-          } else if (data.status === 'COMPLETED') {
-            console.log('Query completed, getting results now...');
+          } else if (data.status === 'COMPLETED' || data.status === 'FINISHED') {
+            console.log(`Query ${data.status}, getting results now...`);
             // Add a small delay before getting results to ensure UI updates
             setTimeout(() => getQueryResults(queryId), 500);
           } else if (data.status === 'FAILED') {
             console.error('Query failed:', data);
           } else {
             console.warn('Unknown status:', data.status);
+            // For any other status, we'll try to get results anyway
+            console.log('Attempting to get results for unknown status...');
+            setTimeout(() => getQueryResults(queryId), 500);
           }
         } else {
           console.error('Error response from status check:', data);

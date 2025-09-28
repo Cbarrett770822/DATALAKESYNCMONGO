@@ -559,7 +559,7 @@ async function getResults(queryId, offset = 0, limit = 1000) {
     
     // First check if the job is completed
     const statusResponse = await checkStatus(queryId);
-    if (statusResponse.status !== 'COMPLETED') {
+    if (statusResponse.status !== 'COMPLETED' && statusResponse.status !== 'FINISHED') {
       console.error(`Cannot get results: Job status is ${statusResponse.status}`);
       if (statusResponse.status === 'FAILED') {
         throw {
