@@ -10,6 +10,22 @@ function logDebug(message, data) {
   console.log(`[DEBUG] ${message}`, data);
 }
 
+/**
+ * Automatically correct common table name format issues
+ * @param {string} sqlQuery - The SQL query to correct
+ * @returns {string} - The corrected SQL query
+ */
+function correctTableNameFormat(sqlQuery) {
+  // Replace wmwhse_taskdetail.taskdetail with "CSWMS_wmwhse_TASKDETAIL"
+  let corrected = sqlQuery.replace(/wmwhse_taskdetail\.taskdetail/g, '"CSWMS_wmwhse_TASKDETAIL"');
+  
+  // Replace unquoted CSWMS_wmwhse_TASKDETAIL with quoted version
+  // This regex avoids replacing already quoted instances
+  corrected = corrected.replace(/([^"'])CSWMS_wmwhse_TASKDETAIL([^"'])/g, '$1"CSWMS_wmwhse_TASKDETAIL"$2');
+  
+  return corrected;
+}
+
 exports.handler = async function(event, context) {
   // Handle OPTIONS request (preflight)
   if (event.httpMethod === 'OPTIONS') {
@@ -42,6 +58,20 @@ exports.handler = async function(event, context) {
     if (requestBody.sqlQuery) {
       sqlQuery = requestBody.sqlQuery;
       
+      // Check if auto-correction is enabled
+      if (requestBody.autoCorrectTableNames !== false) {
+        const originalQuery = sqlQuery;
+        sqlQuery = correctTableNameFormat(sqlQuery);
+        
+        // Log if corrections were made
+        if (sqlQuery !== originalQuery) {
+          logDebug('Auto-corrected table names in query', {
+            original: originalQuery,
+            corrected: sqlQuery
+          });
+        }
+      }
+      
       // Basic SQL validation
       logDebug('Validating custom SQL query', { query: sqlQuery });
       
@@ -71,10 +101,16 @@ exports.handler = async function(event, context) {
       }
       
       // Check for potential table name issues
-      if (sqlQuery.includes('wmwhse_taskdetail.taskdetail')) {
-        logDebug('Using standard table name format', { tableName: 'wmwhse_taskdetail.taskdetail' });
+      if (sqlQuery.includes('"CSWMS_wmwhse_TASKDETAIL"')) {
+        logDebug('Using correct table name format', { tableName: '"CSWMS_wmwhse_TASKDETAIL"' });
       } else if (sqlQuery.includes('CSWMS_wmwhse_TASKDETAIL')) {
-        logDebug('Using CSWMS table name format', { tableName: 'CSWMS_wmwhse_TASKDETAIL' });
+        logDebug('Using CSWMS table name format without quotes', { tableName: 'CSWMS_wmwhse_TASKDETAIL' });
+        // Suggest adding quotes
+        validationIssues.push('Table name should be enclosed in double quotes: "CSWMS_wmwhse_TASKDETAIL"');
+      } else if (sqlQuery.includes('wmwhse_taskdetail.taskdetail')) {
+        logDebug('Using incorrect table name format', { tableName: 'wmwhse_taskdetail.taskdetail' });
+        // Add warning about incorrect table name format
+        validationIssues.push('Incorrect table name format. Use "CSWMS_wmwhse_TASKDETAIL" instead of wmwhse_taskdetail.taskdetail');
       } else {
         logDebug('Could not identify known table name pattern', { query: sqlQuery });
       }
