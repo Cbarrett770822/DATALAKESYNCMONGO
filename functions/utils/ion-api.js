@@ -563,9 +563,20 @@ async function getResults(queryId, offset = 0, limit = 1000) {
     // Convert status to uppercase for case-insensitive comparison
     const status = (statusResponse.status || '').toUpperCase();
     console.log(`Current job status: "${status}" (original: "${statusResponse.status}")`);
+    console.log('Status response details:', statusResponse);
     
     // Check if status indicates completion
     const isCompleted = ['COMPLETED', 'FINISHED', 'DONE'].includes(status);
+    
+    // Check if we have a location field in the status response
+    if (statusResponse.location) {
+      console.log(`Results location found: ${statusResponse.location}`);
+    }
+    
+    // Check if we have column definitions in the status response
+    if (statusResponse.columns) {
+      console.log(`Column definitions found in status response: ${statusResponse.columns.length} columns`);
+    }
     
     if (!isCompleted) {
       console.error(`Cannot get results: Job status is ${status}`);
