@@ -151,44 +151,52 @@
           </div>
         `;
         
+        console.log(`Checking status for query ID: ${queryId}`);
         const response = await fetch(`${baseUrl}/check-status?queryId=${queryId}`);
         const data = await response.json();
+        console.log('Status check response:', data);
         
         if (response.ok) {
-          displayResult('checkStatusResult', data);
+          // Update the status display
+          let statusClass = 'info';
+          let statusMessage = 'Query status: ' + data.status;
           
-          // If still running, check again after 2 seconds
+          if (data.status === 'COMPLETED') {
+            statusClass = 'success';
+            statusMessage = 'Query completed successfully! Getting results...';
+          } else if (data.status === 'FAILED') {
+            statusClass = 'error';
+            statusMessage = 'Query failed! See details below.';
+          } else if (data.status === 'RUNNING') {
+            statusMessage = 'Query is still running. Will check again in 2 seconds...';
+          }
+          
+          document.getElementById('checkStatusResult').innerHTML = `
+            <div class="${statusClass}">
+              <strong>${statusMessage}</strong>
+            </div>
+            <pre>${formatJson(data)}</pre>
+          `;
+          
+          // Handle next steps based on status
           if (data.status === 'RUNNING') {
-            document.getElementById('checkStatusResult').innerHTML = `
-              <div class="info">
-                <strong>Query is still running.</strong> Will check again in 2 seconds...
-              </div>
-              <pre>${formatJson(data)}</pre>
-            `;
+            console.log('Query still running, will check again in 2 seconds');
             setTimeout(() => checkQueryStatus(queryId), 2000);
           } else if (data.status === 'COMPLETED') {
-            // If completed, get results automatically
-            document.getElementById('checkStatusResult').innerHTML = `
-              <div class="success">
-                <strong>Query completed successfully!</strong> Getting results...
-              </div>
-              <pre>${formatJson(data)}</pre>
-            `;
-            console.log('Query completed, getting results...');
-            getQueryResults(queryId);
+            console.log('Query completed, getting results now...');
+            // Add a small delay before getting results to ensure UI updates
+            setTimeout(() => getQueryResults(queryId), 500);
           } else if (data.status === 'FAILED') {
-            document.getElementById('checkStatusResult').innerHTML = `
-              <div class="error">
-                <strong>Query failed!</strong> See details below.
-              </div>
-              <pre>${formatJson(data)}</pre>
-            `;
             console.error('Query failed:', data);
+          } else {
+            console.warn('Unknown status:', data.status);
           }
         } else {
+          console.error('Error response from status check:', data);
           displayResult('checkStatusResult', data, true);
         }
       } catch (error) {
+        console.error('Exception in checkQueryStatus:', error);
         displayResult('checkStatusResult', { message: error.message, stack: error.stack }, true);
       }
     }
@@ -208,8 +216,10 @@
           </div>
         `;
         
+        console.log(`Getting results for query ID: ${queryId}`);
         const response = await fetch(`${baseUrl}/get-results?queryId=${queryId}&offset=0&limit=100`);
         const data = await response.json();
+        console.log('Results response:', data);
         
         if (response.ok) {
           // Format the results in a more readable way
@@ -221,6 +231,7 @@
           
           // Add summary information
           if (data.rows && data.rows.length > 0) {
+            console.log(`Retrieved ${data.rows.length} rows of data`);
             formattedHtml += `
               <div class="summary">
                 <p>Retrieved ${data.rows.length} rows</p>
@@ -229,6 +240,7 @@
             
             // Add table view if there are rows and columns
             if (data.columns && data.columns.length > 0) {
+              console.log(`Data has ${data.columns.length} columns`);
               formattedHtml += `
                 <div class="table-container" style="overflow-x: auto; margin: 20px 0;">
                   <table style="border-collapse: collapse; width: 100%;">
@@ -247,8 +259,35 @@
                   </table>
                 </div>
               `;
+            } else {
+              console.warn('Data has rows but no column definitions');
             }
+          } else if (data.results && data.results.length > 0) {
+            // Alternative format with results array
+            console.log(`Retrieved ${data.results.length} results`);
+            formattedHtml += `
+              <div class="summary">
+                <p>Retrieved ${data.results.length} results</p>
+              </div>
+              <div class="table-container" style="overflow-x: auto; margin: 20px 0;">
+                <table style="border-collapse: collapse; width: 100%;">
+                  <thead>
+                    <tr>
+                      ${Object.keys(data.results[0]).map(key => `<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">${key}</th>`).join('')}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${data.results.map(item => `
+                      <tr>
+                        ${Object.values(item).map(cell => `<td style="border: 1px solid #ddd; padding: 8px;">${cell !== null ? cell : 'NULL'}</td>`).join('')}
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            `;
           } else {
+            console.warn('No rows or results found in the response');
             formattedHtml += `
               <div class="summary">
                 <p>No rows returned by the query</p>
@@ -261,9 +300,11 @@
           
           document.getElementById('getResultsResult').innerHTML = formattedHtml;
         } else {
+          console.error('Error response from get-results:', data);
           displayResult('getResultsResult', data, true);
         }
       } catch (error) {
+        console.error('Exception in getQueryResults:', error);
         displayResult('getResultsResult', { message: error.message, stack: error.stack }, true);
       }
     }
