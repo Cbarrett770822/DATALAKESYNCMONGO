@@ -4,6 +4,16 @@ const querystring = require('querystring');
 const fs = require('fs');
 const path = require('path');
 
+// Load hardcoded credentials if available (for testing only)
+let hardcodedCredentials;
+try {
+  hardcodedCredentials = require('./hardcoded-credentials');
+  console.log('Hardcoded credentials module found');
+} catch (e) {
+  console.log('No hardcoded credentials module found');
+  hardcodedCredentials = null;
+}
+
 // Load ION API credentials from environment variables or file
 function loadCredentials() {
   try {
@@ -93,6 +103,13 @@ function loadCredentials() {
     };
   } catch (error) {
     console.error('Error loading ION API credentials:', error);
+    
+    // Last resort: try to use hardcoded credentials if available
+    if (hardcodedCredentials && typeof hardcodedCredentials.getHardcodedCredentials === 'function') {
+      console.log('FALLBACK: Using hardcoded credentials (FOR TESTING ONLY)');
+      return hardcodedCredentials.getHardcodedCredentials();
+    }
+    
     throw new Error(`Failed to load ION API credentials: ${error.message}`);
   }
 }
