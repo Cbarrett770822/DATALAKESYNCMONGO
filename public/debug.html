@@ -108,6 +108,7 @@
     <h3>Get Results</h3>
     <input type="text" id="resultsQueryId" placeholder="Query ID">
     <button id="testGetResults">Test Get Results</button>
+    <button id="testDirectResults" style="background-color: #ff9800;">Direct Results (Debug)</button>
     <div id="getResultsResult"></div>
   </div>
   
@@ -429,6 +430,49 @@
         
         if (response.ok) {
           displayResult('getResultsResult', data);
+        } else {
+          displayResult('getResultsResult', data, true);
+        }
+      } catch (error) {
+        displayResult('getResultsResult', { message: error.message, stack: error.stack }, true);
+      }
+    });
+    
+    // Direct Results (Debug)
+    document.getElementById('testDirectResults').addEventListener('click', async () => {
+      try {
+        const queryId = document.getElementById('resultsQueryId').value;
+        
+        if (!queryId) {
+          displayResult('getResultsResult', { message: 'Query ID is required' }, true);
+          return;
+        }
+        
+        document.getElementById('getResultsResult').innerHTML = `
+          <div class="info">
+            <strong>Fetching direct results for query:</strong> ${queryId}...
+            <p>This bypasses status checks and directly calls the API endpoint.</p>
+          </div>
+        `;
+        
+        // Add debug parameter to trigger direct fetch
+        const response = await fetch(`${baseUrl}/get-results?queryId=${queryId}&offset=0&limit=10&debug=true`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          let formattedHtml = `
+            <div class="success">
+              <strong>Direct results retrieved!</strong>
+            </div>
+            <div class="summary">
+              <p>Direct API call completed. Check Netlify logs for details.</p>
+            </div>
+          `;
+          
+          // Add raw JSON data
+          formattedHtml += `<pre>${formatJson(data)}</pre>`;
+          
+          document.getElementById('getResultsResult').innerHTML = formattedHtml;
         } else {
           displayResult('getResultsResult', data, true);
         }

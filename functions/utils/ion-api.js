@@ -641,5 +641,6 @@ module.exports = {
   getToken,
   submitQuery,
   checkStatus,
-  getResults
+  getResults,
+  loadCredentials // Expose for debugging
 };
