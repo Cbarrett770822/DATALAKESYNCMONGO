@@ -96,14 +96,23 @@ function ApiTester() {
           error: null
         });
         
-        // If job is completed or failed, stop polling
-        if (statusResponse.status === 'completed' || statusResponse.status === 'failed') {
+        // Convert status to uppercase for case-insensitive comparison
+        const status = (statusResponse.status || '').toUpperCase();
+        console.log(`Current job status: "${status}" (original: "${statusResponse.status}")`);
+        
+        // Check if job is completed, finished, or failed
+        const isCompleted = ['COMPLETED', 'FINISHED', 'DONE'].includes(status);
+        const isFailed = status === 'FAILED';
+        
+        // If job is completed, finished, or failed, stop polling
+        if (isCompleted || isFailed) {
           clearInterval(interval);
           setIsPolling(false);
           setJobStatus(prev => ({ ...prev, loading: false }));
           
-          // If completed, fetch results
-          if (statusResponse.status === 'completed') {
+          // If completed or finished, fetch results
+          if (isCompleted) {
+            console.log(`Job completed with status: ${statusResponse.status}, fetching results...`);
             fetchResults(queryId);
           }
         }
@@ -281,8 +290,13 @@ function ApiTester() {
               <Typography variant="h6">
                 Step 2: Job Status
                 {jobStatus.loading && <CircularProgress size={20} sx={{ ml: 2 }} />}
-                {jobStatus.status === 'completed' && <span style={{ color: 'green', marginLeft: '8px' }}>✓</span>}
-                {jobStatus.status === 'failed' && <span style={{ color: 'red', marginLeft: '8px' }}>✗</span>}
+                {(jobStatus.status === 'completed' || jobStatus.status === 'COMPLETED' || 
+                  jobStatus.status === 'finished' || jobStatus.status === 'FINISHED') && 
+                  <span style={{ color: 'green', marginLeft: '8px' }}>✓</span>
+                }
+                {(jobStatus.status === 'failed' || jobStatus.status === 'FAILED') && 
+                  <span style={{ color: 'red', marginLeft: '8px' }}>✗</span>
+                }
               </Typography>
             </AccordionSummary>
             <AccordionDetails>
@@ -306,16 +320,16 @@ function ApiTester() {
                 <>
                   <Alert 
                     severity={
-                      jobStatus.status === 'completed' ? 'success' : 
-                      jobStatus.status === 'failed' ? 'error' : 
+                      jobStatus.status?.toLowerCase() === 'completed' || jobStatus.status?.toLowerCase() === 'finished' ? 'success' : 
+                      jobStatus.status?.toLowerCase() === 'failed' ? 'error' : 
                       'info'
                     } 
                     sx={{ mb: 2 }}
                   >
-                    Job Status: {jobStatus.status.toUpperCase()}
+                    Job Status: {jobStatus.status?.toUpperCase()}
                   </Alert>
                   
-                  {jobStatus.status !== 'completed' && jobStatus.status !== 'failed' && (
+                  {!['completed', 'finished', 'failed', 'COMPLETED', 'FINISHED', 'FAILED'].includes(jobStatus.status) && (
                     <Box sx={{ width: '100%', mt: 2 }}>
                       <LinearProgress 
                         variant="determinate" 
