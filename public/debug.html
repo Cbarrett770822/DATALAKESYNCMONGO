@@ -95,7 +95,6 @@
       return JSON.stringify(json, null, 2);
     }
     
-    // Default working query
     // Default working query - this format is confirmed to work with DataFabric
     const DEFAULT_WORKING_QUERY = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 100';
     
@@ -122,6 +121,59 @@
     
     // Get base URL
     const baseUrl = `${window.location.protocol}//${window.location.host}/.netlify/functions`;
+    
+    // Function to check query status
+    async function checkQueryStatus(queryId) {
+      try {
+        if (!queryId) {
+          console.error('No query ID provided');
+          return;
+        }
+        
+        const response = await fetch(`${baseUrl}/check-status?queryId=${queryId}`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          displayResult('checkStatusResult', data);
+          
+          // If still running, check again after 2 seconds
+          if (data.status === 'RUNNING') {
+            setTimeout(() => checkQueryStatus(queryId), 2000);
+          } else if (data.status === 'COMPLETED') {
+            // If completed, get results automatically
+            console.log('Query completed, getting results...');
+            getQueryResults(queryId);
+          } else if (data.status === 'FAILED') {
+            console.error('Query failed:', data);
+          }
+        } else {
+          displayResult('checkStatusResult', data, true);
+        }
+      } catch (error) {
+        displayResult('checkStatusResult', { message: error.message, stack: error.stack }, true);
+      }
+    }
+    
+    // Function to get query results
+    async function getQueryResults(queryId) {
+      try {
+        if (!queryId) {
+          console.error('No query ID provided');
+          return;
+        }
+        
+        const response = await fetch(`${baseUrl}/get-results?queryId=${queryId}&offset=0&limit=100`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          displayResult('getResultsResult', data);
+        } else {
+          displayResult('getResultsResult', data, true);
+        }
+      } catch (error) {
+        displayResult('getResultsResult', { message: error.message, stack: error.stack }, true);
+      }
+    }
     
     // Reset Query
     document.getElementById('resetQuery').addEventListener('click', () => {
