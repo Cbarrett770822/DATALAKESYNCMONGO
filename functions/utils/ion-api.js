@@ -130,37 +130,122 @@ let tokenExpiry = null;
  * @returns {Promise<Object>} - Response data
  */
 function makeRequest(options, body = null) {
+  // Generate a unique request ID for tracking
+  const requestId = `req_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+  
+  // Log request details (with sensitive info redacted)
+  const logOptions = { ...options };
+  if (logOptions.headers && logOptions.headers.Authorization) {
+    logOptions.headers = { ...logOptions.headers };
+    logOptions.headers.Authorization = logOptions.headers.Authorization.replace(/Bearer\s+[^\s]+/, 'Bearer [REDACTED]');
+  }
+  
+  console.log(`[${requestId}] Request:`, {
+    method: options.method,
+    url: `https://${options.hostname}${options.path}`,
+    headers: logOptions.headers,
+    bodyLength: body ? body.length : 0,
+    bodyPreview: body ? `${body.substring(0, 50)}${body.length > 50 ? '...' : ''}` : null
+  });
+  
   return new Promise((resolve, reject) => {
+    // Track request timing
+    const startTime = Date.now();
+    
     const req = https.request(options, (res) => {
       let data = '';
+      let dataSize = 0;
+      
+      // Log response headers
+      console.log(`[${requestId}] Response headers:`, {
+        statusCode: res.statusCode,
+        statusMessage: res.statusMessage,
+        headers: res.headers
+      });
       
       res.on('data', (chunk) => {
         data += chunk;
+        dataSize += chunk.length;
+        
+        // Log progress for large responses
+        if (dataSize > 1024 * 1024) { // 1MB
+          console.log(`[${requestId}] Receiving large response: ${Math.floor(dataSize / 1024)}KB so far`);
+        }
       });
       
       res.on('end', () => {
+        const duration = Date.now() - startTime;
+        console.log(`[${requestId}] Response completed in ${duration}ms, size: ${Math.floor(data.length / 1024)}KB`);
+        
         if (res.statusCode >= 200 && res.statusCode < 300) {
           try {
+            // Try to parse as JSON
             const jsonData = JSON.parse(data);
+            console.log(`[${requestId}] Parsed JSON response successfully`);
+            
+            // Check for API-specific error indicators in successful responses
+            if (jsonData.error || jsonData.errorMessage) {
+              console.warn(`[${requestId}] API returned error in successful response:`, 
+                jsonData.error || jsonData.errorMessage);
+            }
+            
             resolve(jsonData);
           } catch (e) {
-            // If not JSON, return raw data
+            // If not JSON, log and return raw data
+            console.log(`[${requestId}] Response is not JSON, returning raw data`);
             resolve(data);
           }
         } else {
-          reject({
+          // Enhanced error object
+          const errorObj = {
             statusCode: res.statusCode,
             message: `HTTP Error: ${res.statusCode}`,
-            data: data
-          });
+            data: data,
+            headers: res.headers,
+            requestId: requestId,
+            duration: duration
+          };
+          
+          // Try to parse error response as JSON
+          try {
+            if (data && data.trim().startsWith('{')) {
+              errorObj.parsedError = JSON.parse(data);
+              console.error(`[${requestId}] Error response parsed:`, errorObj.parsedError);
+            }
+          } catch (parseError) {
+            console.log(`[${requestId}] Could not parse error response as JSON`);
+          }
+          
+          console.error(`[${requestId}] Request failed with status ${res.statusCode}:`, 
+            data.substring(0, 200) + (data.length > 200 ? '...' : ''));
+          
+          reject(errorObj);
         }
       });
     });
     
     req.on('error', (e) => {
+      const duration = Date.now() - startTime;
+      console.error(`[${requestId}] Network error after ${duration}ms:`, e.message);
+      
       reject({
         message: `Request error: ${e.message}`,
-        error: e
+        error: e,
+        requestId: requestId,
+        duration: duration,
+        networkError: true
+      });
+    });
+    
+    // Set timeout
+    req.setTimeout(30000, () => {
+      req.destroy();
+      console.error(`[${requestId}] Request timeout after 30s`);
+      
+      reject({
+        message: 'Request timeout after 30 seconds',
+        requestId: requestId,
+        timeout: true
       });
     });
     
@@ -263,11 +348,66 @@ async function submitQuery(sqlQuery) {
   
   try {
     console.log('Submitting query:', sqlQuery);
+    console.log('Request URL:', submitUrl.toString());
+    console.log('Request headers:', JSON.stringify(options.headers, null, 2).replace(options.headers.Authorization, 'Bearer [REDACTED]'));
+    
+    // Log the first 100 characters of the query for debugging
+    console.log('Query preview:', sqlQuery.substring(0, 100) + (sqlQuery.length > 100 ? '...' : ''));
+    
+    // Make the request
     const response = await makeRequest(options, sqlQuery);
-    console.log('Query submitted successfully:', response);
+    
+    // Log the response
+    console.log('Query submitted successfully:', JSON.stringify(response, null, 2));
+    
+    // Verify the response contains expected fields
+    if (!response.queryId && response.id) {
+      console.log('Response contains id instead of queryId, normalizing...');
+      response.queryId = response.id;
+    }
+    
+    if (!response.status) {
+      console.warn('Response does not contain status field');
+      response.status = 'SUBMITTED';
+    }
+    
     return response;
   } catch (error) {
     console.error('Error submitting query:', error);
+    
+    // Enhanced error logging
+    if (error.statusCode) {
+      console.error(`HTTP Status Code: ${error.statusCode}`);
+    }
+    
+    if (error.data) {
+      console.error('Error response data:', error.data);
+      
+      // Try to parse the error data if it's a string
+      if (typeof error.data === 'string') {
+        try {
+          const parsedData = JSON.parse(error.data);
+          console.error('Parsed error data:', parsedData);
+          
+          // Add parsed data to the error object
+          error.parsedData = parsedData;
+          
+          // Check for specific error types
+          if (parsedData.error) {
+            console.error('API error type:', parsedData.error);
+            error.apiErrorType = parsedData.error;
+          }
+          
+          if (parsedData.error_trace_id) {
+            console.error('Error trace ID:', parsedData.error_trace_id);
+            error.traceId = parsedData.error_trace_id;
+          }
+        } catch (parseError) {
+          console.log('Could not parse error data as JSON');
+        }
+      }
+    }
+    
     throw error;
   }
 }
@@ -306,28 +446,73 @@ async function checkStatus(queryId) {
     // Enhanced error handling for FAILED status
     if (response.status === 'FAILED') {
       console.error(`Query ${queryId} failed with status: ${response.status}`);
+      console.error('Full response:', JSON.stringify(response, null, 2));
       
       // Extract error details if available
       if (response.error) {
         console.error('Error details:', response.error);
       }
       
-      // Parse message for additional error information
+      // Check for common error patterns
       if (response.message) {
         console.error('Error message:', response.message);
         
+        // Look for specific error patterns
+        if (response.message.includes('syntax error')) {
+          console.error('SQL SYNTAX ERROR DETECTED: Check your SQL query syntax');
+          response.errorType = 'SYNTAX_ERROR';
+        } else if (response.message.includes('permission') || response.message.includes('access denied')) {
+          console.error('PERMISSION ERROR DETECTED: The credentials may not have access to this data');
+          response.errorType = 'PERMISSION_ERROR';
+        } else if (response.message.includes('not found') || response.message.includes('does not exist')) {
+          console.error('RESOURCE NOT FOUND ERROR: The table or resource may not exist');
+          response.errorType = 'NOT_FOUND_ERROR';
+        } else if (response.message.includes('timeout')) {
+          console.error('TIMEOUT ERROR: The query took too long to execute');
+          response.errorType = 'TIMEOUT_ERROR';
+        }
+        
         // Try to extract structured error information if it's in JSON format
         try {
-          if (typeof response.message === 'string' && response.message.includes('{')) {
+          if (typeof response.message === 'string') {
+            // Try to find JSON in the message
             const errorMatch = response.message.match(/\{.*\}/s);
             if (errorMatch) {
               const errorJson = JSON.parse(errorMatch[0]);
               response.errorDetails = errorJson;
               console.error('Parsed error details:', errorJson);
+              
+              // Check for specific error codes in the JSON
+              if (errorJson.errorCode) {
+                console.error(`Error code: ${errorJson.errorCode}`);
+                response.errorCode = errorJson.errorCode;
+              }
+            }
+            
+            // Look for SQL error position indicators
+            const sqlErrorMatch = response.message.match(/at or near "([^"]+)"/i);
+            if (sqlErrorMatch) {
+              console.error(`SQL error near: ${sqlErrorMatch[1]}`);
+              response.sqlErrorNear = sqlErrorMatch[1];
             }
           }
         } catch (parseError) {
           console.log('Could not parse error details from message:', parseError.message);
+        }
+      }
+      
+      // Check for status code information
+      if (response.statusCode) {
+        console.error(`Status code: ${response.statusCode}`);
+        
+        if (response.statusCode === 400) {
+          console.error('BAD REQUEST: The query format is invalid');
+        } else if (response.statusCode === 401 || response.statusCode === 403) {
+          console.error('AUTHENTICATION/AUTHORIZATION ERROR: Check credentials');
+        } else if (response.statusCode === 404) {
+          console.error('NOT FOUND: The requested resource does not exist');
+        } else if (response.statusCode === 500) {
+          console.error('SERVER ERROR: An internal server error occurred');
         }
       }
     }

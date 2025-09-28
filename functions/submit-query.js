@@ -41,6 +41,51 @@ exports.handler = async function(event, context) {
     let sqlQuery;
     if (requestBody.sqlQuery) {
       sqlQuery = requestBody.sqlQuery;
+      
+      // Basic SQL validation
+      logDebug('Validating custom SQL query', { query: sqlQuery });
+      
+      // Check for common SQL syntax issues
+      const validationIssues = [];
+      
+      // Check for unbalanced quotes
+      const singleQuotes = (sqlQuery.match(/'/g) || []).length;
+      if (singleQuotes % 2 !== 0) {
+        validationIssues.push('Unbalanced single quotes');
+      }
+      
+      const doubleQuotes = (sqlQuery.match(/"/g) || []).length;
+      if (doubleQuotes % 2 !== 0) {
+        validationIssues.push('Unbalanced double quotes');
+      }
+      
+      // Check for missing semicolons at the end
+      if (!sqlQuery.trim().endsWith(';') && !requestBody.skipSemicolonCheck) {
+        logDebug('SQL query does not end with semicolon', { query: sqlQuery });
+        // Don't add as an issue, just a warning
+      }
+      
+      // Check for common SQL keywords
+      if (!sqlQuery.toUpperCase().includes('SELECT')) {
+        validationIssues.push('Query does not contain SELECT keyword');
+      }
+      
+      // Check for potential table name issues
+      if (sqlQuery.includes('wmwhse_taskdetail.taskdetail')) {
+        logDebug('Using standard table name format', { tableName: 'wmwhse_taskdetail.taskdetail' });
+      } else if (sqlQuery.includes('CSWMS_wmwhse_TASKDETAIL')) {
+        logDebug('Using CSWMS table name format', { tableName: 'CSWMS_wmwhse_TASKDETAIL' });
+      } else {
+        logDebug('Could not identify known table name pattern', { query: sqlQuery });
+      }
+      
+      // Log validation results
+      if (validationIssues.length > 0) {
+        logDebug('SQL validation issues found', { issues: validationIssues });
+        console.warn('SQL validation issues:', validationIssues);
+      } else {
+        logDebug('SQL validation passed', { query: sqlQuery });
+      }
     } else {
       // Otherwise, build a query using the query builder
       const queryOptions = {
