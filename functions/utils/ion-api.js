@@ -302,6 +302,36 @@ async function checkStatus(queryId) {
     console.log('Checking status for queryId:', queryId);
     const response = await makeRequest(options);
     console.log('Status response:', response);
+    
+    // Enhanced error handling for FAILED status
+    if (response.status === 'FAILED') {
+      console.error(`Query ${queryId} failed with status: ${response.status}`);
+      
+      // Extract error details if available
+      if (response.error) {
+        console.error('Error details:', response.error);
+      }
+      
+      // Parse message for additional error information
+      if (response.message) {
+        console.error('Error message:', response.message);
+        
+        // Try to extract structured error information if it's in JSON format
+        try {
+          if (typeof response.message === 'string' && response.message.includes('{')) {
+            const errorMatch = response.message.match(/\{.*\}/s);
+            if (errorMatch) {
+              const errorJson = JSON.parse(errorMatch[0]);
+              response.errorDetails = errorJson;
+              console.error('Parsed error details:', errorJson);
+            }
+          }
+        } catch (parseError) {
+          console.log('Could not parse error details from message:', parseError.message);
+        }
+      }
+    }
+    
     return response;
   } catch (error) {
     console.error('Error checking status:', error);
@@ -341,8 +371,42 @@ async function getResults(queryId, offset = 0, limit = 1000) {
   
   try {
     console.log('Getting results for queryId:', queryId);
+    
+    // First check if the job is completed
+    const statusResponse = await checkStatus(queryId);
+    if (statusResponse.status !== 'COMPLETED') {
+      console.error(`Cannot get results: Job status is ${statusResponse.status}`);
+      if (statusResponse.status === 'FAILED') {
+        throw {
+          statusCode: 400,
+          message: `Query failed: ${statusResponse.message || 'Unknown error'}`,
+          data: statusResponse
+        };
+      } else if (statusResponse.status === 'RUNNING') {
+        throw {
+          statusCode: 202, // Accepted but not ready
+          message: 'Query is still running',
+          data: statusResponse
+        };
+      } else {
+        throw {
+          statusCode: 400,
+          message: `Cannot get results: Job status is ${statusResponse.status}`,
+          data: statusResponse
+        };
+      }
+    }
+    
+    // If job is completed, get the results
     const response = await makeRequest(options);
-    console.log('Results retrieved successfully');
+    
+    // Check if results are empty
+    if (response && Array.isArray(response.rows) && response.rows.length === 0) {
+      console.log('Query returned no results');
+    } else {
+      console.log(`Results retrieved successfully: ${response.rows ? response.rows.length : 0} rows`);
+    }
+    
     return response;
   } catch (error) {
     console.error('Error getting results:', error);

@@ -21,13 +21,26 @@ exports.handler = async function(event, context) {
     // Check the status using the ION API module
     const response = await ionApi.checkStatus(queryId);
     
-    // Return success response
-    return successResponse({
+    // Add debug information
+    console.log('[DEBUG] Status response:', JSON.stringify(response, null, 2));
+    
+    // Prepare response data
+    const responseData = {
       queryId: queryId,
       status: response.status,
       progress: response.progress || 0,
       message: response.message || ''
-    });
+    };
+    
+    // Add error details if available
+    if (response.status === 'FAILED') {
+      responseData.error = response.error || 'Unknown error';
+      responseData.errorDetails = response.errorDetails || response.message || '';
+      console.error(`Query ${queryId} failed:`, responseData.error, responseData.errorDetails);
+    }
+    
+    // Return success response
+    return successResponse(responseData);
   } catch (error) {
     console.error('Error in check-status function:', error);
     
