@@ -26,6 +26,17 @@ exports.handler = async function(event, context) {
     // Add debug information
     console.log('[DEBUG] Results response:', JSON.stringify(response, null, 2));
     
+    // Check if the response contains an error
+    if (response && response.error === true) {
+      console.error('[DEBUG] Error in results response:', response.message);
+      return errorResponse(
+        'Failed to get results', 
+        response.message || 'Unknown error', 
+        500, 
+        response.details
+      );
+    }
+    
     // Format the response based on the structure returned by the API
     let formattedResponse = {
       queryId: queryId,

@@ -61,6 +61,14 @@
       margin: 10px 0;
       border: 1px solid #bbdefb;
     }
+    .warning {
+      color: #ff9800;
+      background-color: #fff3e0;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      border: 1px solid #ffe0b2;
+    }
     .summary {
       margin: 10px 0;
       padding: 10px;
@@ -179,19 +187,33 @@
           `;
           
           // Handle next steps based on status
-          if (data.status === 'RUNNING') {
+          // Convert status to uppercase for case-insensitive comparison
+          const status = (data.status || '').toUpperCase();
+          console.log(`Status check returned: "${status}" (original: "${data.status}")`);
+          
+          if (status === 'RUNNING') {
             console.log('Query still running, will check again in 2 seconds');
             setTimeout(() => checkQueryStatus(queryId), 2000);
-          } else if (data.status === 'COMPLETED' || data.status === 'FINISHED') {
-            console.log(`Query ${data.status}, getting results now...`);
+          } else if (status === 'COMPLETED' || status === 'FINISHED' || status === 'DONE') {
+            console.log(`Query ${status}, getting results now...`);
             // Add a small delay before getting results to ensure UI updates
+            document.getElementById('getResultsResult').innerHTML = `
+              <div class="info">
+                <strong>Status is ${status}. Attempting to get results...</strong>
+              </div>
+            `;
             setTimeout(() => getQueryResults(queryId), 500);
-          } else if (data.status === 'FAILED') {
+          } else if (status === 'FAILED') {
             console.error('Query failed:', data);
           } else {
-            console.warn('Unknown status:', data.status);
+            console.warn('Unknown status:', status);
             // For any other status, we'll try to get results anyway
             console.log('Attempting to get results for unknown status...');
+            document.getElementById('getResultsResult').innerHTML = `
+              <div class="warning">
+                <strong>Unknown status: ${status}. Attempting to get results anyway...</strong>
+              </div>
+            `;
             setTimeout(() => getQueryResults(queryId), 500);
           }
         } else {

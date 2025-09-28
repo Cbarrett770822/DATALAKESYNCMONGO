@@ -559,15 +559,23 @@ async function getResults(queryId, offset = 0, limit = 1000) {
     
     // First check if the job is completed
     const statusResponse = await checkStatus(queryId);
-    if (statusResponse.status !== 'COMPLETED' && statusResponse.status !== 'FINISHED') {
-      console.error(`Cannot get results: Job status is ${statusResponse.status}`);
-      if (statusResponse.status === 'FAILED') {
+    
+    // Convert status to uppercase for case-insensitive comparison
+    const status = (statusResponse.status || '').toUpperCase();
+    console.log(`Current job status: "${status}" (original: "${statusResponse.status}")`);
+    
+    // Check if status indicates completion
+    const isCompleted = ['COMPLETED', 'FINISHED', 'DONE'].includes(status);
+    
+    if (!isCompleted) {
+      console.error(`Cannot get results: Job status is ${status}`);
+      if (status === 'FAILED') {
         throw {
           statusCode: 400,
           message: `Query failed: ${statusResponse.message || 'Unknown error'}`,
           data: statusResponse
         };
-      } else if (statusResponse.status === 'RUNNING') {
+      } else if (status === 'RUNNING') {
         throw {
           statusCode: 202, // Accepted but not ready
           message: 'Query is still running',
@@ -583,16 +591,46 @@ async function getResults(queryId, offset = 0, limit = 1000) {
     }
     
     // If job is completed, get the results
-    const response = await makeRequest(options);
+    console.log(`Fetching results for completed job with status: ${status}`);
+    console.log('Request options:', {
+      url: `https://${options.hostname}${options.path}`,
+      method: options.method,
+      headers: { ...options.headers, Authorization: 'Bearer [REDACTED]' }
+    });
     
-    // Check if results are empty
-    if (response && Array.isArray(response.rows) && response.rows.length === 0) {
-      console.log('Query returned no results');
-    } else {
-      console.log(`Results retrieved successfully: ${response.rows ? response.rows.length : 0} rows`);
+    try {
+      const response = await makeRequest(options);
+      
+      // Log the raw response for debugging
+      console.log('Raw response from getResults:', typeof response, response ? 'not null' : 'null');
+      
+      // Check if results are empty or null
+      if (!response) {
+        console.warn('Results response is null or undefined');
+        return { rows: [], columns: [], message: 'No results returned from API' };
+      } else if (Array.isArray(response.rows) && response.rows.length === 0) {
+        console.log('Query returned empty rows array');
+      } else if (response.rows) {
+        console.log(`Results retrieved successfully: ${response.rows.length} rows`);
+      } else if (response.results) {
+        console.log(`Results retrieved successfully: ${response.results.length} results`);
+      } else {
+        console.warn('Response has unexpected format:', response);
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('Error in makeRequest during getResults:', error);
+      
+      // Return a structured error response instead of throwing
+      return {
+        error: true,
+        message: error.message || 'Error retrieving results',
+        details: error,
+        rows: [],
+        columns: []
+      };
     }
-    
-    return response;
   } catch (error) {
     console.error('Error getting results:', error);
     throw error;
