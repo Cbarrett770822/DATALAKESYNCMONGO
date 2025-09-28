@@ -71,6 +71,10 @@
     <h2>Test API Endpoints</h2>
     
     <h3>Submit Query</h3>
+    <textarea id="sqlQuery" rows="4" style="width: 100%; margin-bottom: 10px;">SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 100</textarea>
+    <div style="margin-bottom: 10px;">
+      <button id="resetQuery" style="background-color: #4caf50;">Reset to Working Query</button>
+    </div>
     <button id="testSubmitQuery">Test Submit Query</button>
     <div id="submitQueryResult"></div>
     
@@ -90,6 +94,9 @@
     function formatJson(json) {
       return JSON.stringify(json, null, 2);
     }
+    
+    // Default working query
+    const DEFAULT_WORKING_QUERY = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 100';
     
     // Helper function to display results
     function displayResult(elementId, data, isError = false) {
@@ -114,6 +121,11 @@
     
     // Get base URL
     const baseUrl = `${window.location.protocol}//${window.location.host}/.netlify/functions`;
+    
+    // Reset Query
+    document.getElementById('resetQuery').addEventListener('click', () => {
+      document.getElementById('sqlQuery').value = DEFAULT_WORKING_QUERY;
+    });
     
     // Debug Info
     document.getElementById('getDebugInfo').addEventListener('click', async () => {
@@ -140,7 +152,7 @@
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            sqlQuery: 'SELECT * FROM wmwhse_taskdetail.taskdetail LIMIT 10'
+            sqlQuery: document.getElementById('sqlQuery').value
           })
         });
         
