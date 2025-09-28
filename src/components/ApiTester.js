@@ -19,7 +19,7 @@ import { submitQuery, checkQueryStatus as checkStatus, getQueryResults as getRes
 
 function ApiTester() {
   // State for SQL query
-  const [sqlQuery, setSqlQuery] = useState('SELECT * FROM wmwhse_taskdetail.taskdetail LIMIT 10');
+  const [sqlQuery, setSqlQuery] = useState('SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 1');
   
   // State for API responses
   const [tokenStatus, setTokenStatus] = useState({ loading: false, success: false, error: null });

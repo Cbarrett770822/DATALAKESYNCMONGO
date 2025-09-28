@@ -98,7 +98,7 @@ async function testGetToken() {
 }
 
 async function testSubmitQuery() {
-  const sqlQuery = 'SELECT * FROM wmwhse_taskdetail.taskdetail LIMIT 10';
+  const sqlQuery = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 1';
   const response = await api.post('/submit-query', { sqlQuery });
   if (!response.data.queryId) {
     throw new Error('No queryId returned');

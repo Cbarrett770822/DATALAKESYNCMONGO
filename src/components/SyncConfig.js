@@ -138,7 +138,7 @@ function SyncConfig() {
         setSqlQuery(formState.customQuery);
       } else {
         // Generate a preview of the SQL query that will be used
-        let query = `SELECT * FROM wmwhse_taskdetail.taskdetail`;
+        let query = `SELECT * FROM "CSWMS_wmwhse_TASKDETAIL"`;
         const conditions = [];
         
         if (syncOptions.whseid) {
