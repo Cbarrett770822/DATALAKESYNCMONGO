@@ -53,6 +53,20 @@
       margin: 10px 0;
       border: 1px solid #c8e6c9;
     }
+    .info {
+      color: #1976d2;
+      background-color: #e3f2fd;
+      padding: 10px;
+      border-radius: 4px;
+      margin: 10px 0;
+      border: 1px solid #bbdefb;
+    }
+    .summary {
+      margin: 10px 0;
+      padding: 10px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+    }
     .container {
       margin-bottom: 30px;
     }
@@ -130,6 +144,13 @@
           return;
         }
         
+        // Show checking status message
+        document.getElementById('checkStatusResult').innerHTML = `
+          <div class="info">
+            <strong>Checking status for query:</strong> ${queryId}...
+          </div>
+        `;
+        
         const response = await fetch(`${baseUrl}/check-status?queryId=${queryId}`);
         const data = await response.json();
         
@@ -138,12 +159,30 @@
           
           // If still running, check again after 2 seconds
           if (data.status === 'RUNNING') {
+            document.getElementById('checkStatusResult').innerHTML = `
+              <div class="info">
+                <strong>Query is still running.</strong> Will check again in 2 seconds...
+              </div>
+              <pre>${formatJson(data)}</pre>
+            `;
             setTimeout(() => checkQueryStatus(queryId), 2000);
           } else if (data.status === 'COMPLETED') {
             // If completed, get results automatically
+            document.getElementById('checkStatusResult').innerHTML = `
+              <div class="success">
+                <strong>Query completed successfully!</strong> Getting results...
+              </div>
+              <pre>${formatJson(data)}</pre>
+            `;
             console.log('Query completed, getting results...');
             getQueryResults(queryId);
           } else if (data.status === 'FAILED') {
+            document.getElementById('checkStatusResult').innerHTML = `
+              <div class="error">
+                <strong>Query failed!</strong> See details below.
+              </div>
+              <pre>${formatJson(data)}</pre>
+            `;
             console.error('Query failed:', data);
           }
         } else {
@@ -162,11 +201,65 @@
           return;
         }
         
+        // Show fetching results message
+        document.getElementById('getResultsResult').innerHTML = `
+          <div class="info">
+            <strong>Fetching results for query:</strong> ${queryId}...
+          </div>
+        `;
+        
         const response = await fetch(`${baseUrl}/get-results?queryId=${queryId}&offset=0&limit=100`);
         const data = await response.json();
         
         if (response.ok) {
-          displayResult('getResultsResult', data);
+          // Format the results in a more readable way
+          let formattedHtml = `
+            <div class="success">
+              <strong>Results retrieved successfully!</strong>
+            </div>
+          `;
+          
+          // Add summary information
+          if (data.rows && data.rows.length > 0) {
+            formattedHtml += `
+              <div class="summary">
+                <p>Retrieved ${data.rows.length} rows</p>
+              </div>
+            `;
+            
+            // Add table view if there are rows and columns
+            if (data.columns && data.columns.length > 0) {
+              formattedHtml += `
+                <div class="table-container" style="overflow-x: auto; margin: 20px 0;">
+                  <table style="border-collapse: collapse; width: 100%;">
+                    <thead>
+                      <tr>
+                        ${data.columns.map(col => `<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">${col.name}</th>`).join('')}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${data.rows.map(row => `
+                        <tr>
+                          ${Object.values(row).map(cell => `<td style="border: 1px solid #ddd; padding: 8px;">${cell !== null ? cell : 'NULL'}</td>`).join('')}
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `;
+            }
+          } else {
+            formattedHtml += `
+              <div class="summary">
+                <p>No rows returned by the query</p>
+              </div>
+            `;
+          }
+          
+          // Add raw JSON data
+          formattedHtml += `<pre>${formatJson(data)}</pre>`;
+          
+          document.getElementById('getResultsResult').innerHTML = formattedHtml;
         } else {
           displayResult('getResultsResult', data, true);
         }
