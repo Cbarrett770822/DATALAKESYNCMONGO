@@ -103,6 +103,7 @@
     <h3>Check Status</h3>
     <input type="text" id="queryId" placeholder="Query ID">
     <button id="testCheckStatus">Test Check Status</button>
+    <button id="testDirectStatus" style="background-color: #ff9800;">Direct Status (Debug)</button>
     <div id="checkStatusResult"></div>
     
     <h3>Get Results</h3>
@@ -407,6 +408,11 @@
         
         if (response.ok) {
           displayResult('checkStatusResult', data);
+          
+          // If query is completed, automatically populate the results query ID
+          if (data.status === 'COMPLETED' || data.status === 'FINISHED' || data.status === 'finished' || data.status === 'completed') {
+            document.getElementById('resultsQueryId').value = queryId;
+          }
         } else {
           displayResult('checkStatusResult', data, true);
         }
@@ -435,6 +441,76 @@
         }
       } catch (error) {
         displayResult('getResultsResult', { message: error.message, stack: error.stack }, true);
+      }
+    });
+    
+    // Direct Status Check (Debug)
+    document.getElementById('testDirectStatus').addEventListener('click', async () => {
+      try {
+        const queryId = document.getElementById('queryId').value;
+        
+        if (!queryId) {
+          displayResult('checkStatusResult', { message: 'Query ID is required' }, true);
+          return;
+        }
+        
+        document.getElementById('checkStatusResult').innerHTML = `
+          <div class="info">
+            <strong>Performing direct status check for query:</strong> ${queryId}...
+            <p>This will make a direct API call to the DataFabric API.</p>
+          </div>
+        `;
+        
+        // Add debug parameter to trigger direct status check
+        const response = await fetch(`${baseUrl}/check-status?queryId=${queryId}&debug=true`);
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Convert status to uppercase for display
+          const status = (data.status || '').toUpperCase();
+          const statusClass = 
+            (status === 'COMPLETED' || status === 'FINISHED' || status === 'DONE') ? 'success' : 
+            (status === 'FAILED') ? 'error' : 
+            (status === 'RUNNING') ? 'info' : 'warning';
+          
+          let formattedHtml = `
+            <div class="${statusClass}">
+              <strong>Direct status check result: ${status}</strong>
+            </div>
+            <div class="summary">
+              <p>Raw status value: "${data.status}"</p>
+              <p>Progress: ${data.progress || 0}%</p>
+            </div>
+          `;
+          
+          // If status indicates completion, automatically populate the results query ID
+          if (status === 'COMPLETED' || status === 'FINISHED' || status === 'DONE') {
+            document.getElementById('resultsQueryId').value = queryId;
+            formattedHtml += `
+              <div class="info">
+                <p>Status indicates completion. The query ID has been copied to the Get Results section.</p>
+                <button id="getResultsNow" class="btn" style="background-color: #4caf50; color: white; padding: 8px 16px; border: none; cursor: pointer; margin-top: 10px;">Get Results Now</button>
+              </div>
+            `;
+          }
+          
+          // Add raw JSON data
+          formattedHtml += `<pre>${formatJson(data)}</pre>`;
+          
+          document.getElementById('checkStatusResult').innerHTML = formattedHtml;
+          
+          // Add event listener for the Get Results Now button if it exists
+          const getResultsNowButton = document.getElementById('getResultsNow');
+          if (getResultsNowButton) {
+            getResultsNowButton.addEventListener('click', () => {
+              document.getElementById('testDirectResults').click();
+            });
+          }
+        } else {
+          displayResult('checkStatusResult', data, true);
+        }
+      } catch (error) {
+        displayResult('checkStatusResult', { message: error.message, stack: error.stack }, true);
       }
     });
     
