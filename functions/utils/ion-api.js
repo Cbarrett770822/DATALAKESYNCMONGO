@@ -619,6 +619,20 @@ async function getResults(queryId, offset = 0, limit = 1000) {
       if (!response) {
         console.warn('Results response is null or undefined');
         return { rows: [], columns: [], message: 'No results returned from API' };
+      } 
+      
+      // Handle array response (direct records)
+      if (Array.isArray(response)) {
+        console.log(`Results retrieved successfully: ${response.length} records in array format`);
+        
+        // Convert array format to expected format with rows property
+        return {
+          rows: response,
+          results: response, // Include both formats for compatibility
+          total: response.length,
+          message: `Retrieved ${response.length} records directly`,
+          columns: statusResponse.columns || [] // Use columns from status response if available
+        };
       } else if (Array.isArray(response.rows) && response.rows.length === 0) {
         console.log('Query returned empty rows array');
       } else if (response.rows) {
