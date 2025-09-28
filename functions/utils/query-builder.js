@@ -25,7 +25,7 @@ function buildTaskdetailQuery(options = {}) {
   const queryOptions = { ...defaults, ...options };
   
   // Start building the query
-  let query = 'SELECT * FROM wmwhse_taskdetail.taskdetail';
+  let query = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL"';
   
   // Build WHERE clause
   const conditions = [];
@@ -84,7 +84,7 @@ function buildTaskdetailCountQuery(options = {}) {
   const queryOptions = { ...defaults, ...options };
   
   // Start building the query
-  let query = 'SELECT COUNT(*) AS count FROM wmwhse_taskdetail.taskdetail';
+  let query = 'SELECT COUNT(*) AS count FROM "CSWMS_wmwhse_TASKDETAIL"';
   
   // Build WHERE clause
   const conditions = [];
@@ -142,7 +142,7 @@ function buildTaskdetailPaginatedQuery(options = {}) {
   const queryOptions = { ...defaults, ...options };
   
   // Start building the query
-  let query = 'SELECT * FROM wmwhse_taskdetail.taskdetail';
+  let query = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL"';
   
   // Build WHERE clause
   const conditions = [];
@@ -196,7 +196,7 @@ function buildLatestTaskdetailQuery(options = {}) {
   const queryOptions = { ...defaults, ...options };
   
   // Start building the query
-  let query = 'SELECT * FROM wmwhse_taskdetail.taskdetail';
+  let query = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL"';
   
   // Add warehouse filter
   if (queryOptions.whseid) {

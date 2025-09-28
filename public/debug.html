@@ -96,6 +96,7 @@
     }
     
     // Default working query
+    // Default working query - this format is confirmed to work with DataFabric
     const DEFAULT_WORKING_QUERY = 'SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 100';
     
     // Helper function to display results
@@ -164,6 +165,12 @@
           if (data.queryId) {
             document.getElementById('queryId').value = data.queryId;
             document.getElementById('resultsQueryId').value = data.queryId;
+            
+            // Auto-check status after 1 second
+            setTimeout(() => {
+              console.log('Auto-checking status for query:', data.queryId);
+              checkQueryStatus(data.queryId);
+            }, 1000);
           }
         } else {
           displayResult('submitQueryResult', data, true);
