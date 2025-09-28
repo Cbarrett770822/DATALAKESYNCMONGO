@@ -625,13 +625,21 @@ async function getResults(queryId, offset = 0, limit = 1000) {
       if (Array.isArray(response)) {
         console.log(`Results retrieved successfully: ${response.length} records in array format`);
         
+        // Apply the limit on our side if needed
+        const limitedResponse = limit > 0 ? response.slice(offset, offset + limit) : response;
+        console.log(`Applied client-side limit: ${limitedResponse.length} records (from ${response.length} total)`);
+        
         // Convert array format to expected format with rows property
         return {
-          rows: response,
-          results: response, // Include both formats for compatibility
-          total: response.length,
-          message: `Retrieved ${response.length} records directly`,
-          columns: statusResponse.columns || [] // Use columns from status response if available
+          rows: limitedResponse,
+          results: limitedResponse, // Include both formats for compatibility
+          total: response.length, // Keep the total count of all records
+          actualCount: limitedResponse.length, // Add the actual count after limiting
+          offset: offset,
+          limit: limit,
+          message: `Retrieved ${limitedResponse.length} records (limited from ${response.length} total)`,
+          columns: statusResponse.columns || [], // Use columns from status response if available
+          appliedClientLimit: limitedResponse.length !== response.length // Flag indicating we applied a limit
         };
       } else if (Array.isArray(response.rows) && response.rows.length === 0) {
         console.log('Query returned empty rows array');

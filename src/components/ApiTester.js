@@ -435,6 +435,12 @@ function ApiTester() {
                         `Query completed successfully! Retrieved column definitions for ${resultsStatus.data.columns.length} columns.` :
                         'Query completed successfully!'
                     }
+                    {resultsStatus.data.appliedClientLimit && 
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        <strong>Note:</strong> Client-side limit applied. {resultsStatus.data.message || 
+                          `Showing ${resultsStatus.data.results?.length} of ${resultsStatus.data.total} total records.`}
+                      </Typography>
+                    }
                   </Alert>
                   
                   <Box sx={{ mt: 2 }}>
