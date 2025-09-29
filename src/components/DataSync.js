@@ -60,9 +60,22 @@ const DataSync = () => {
       setSyncStatus({ status: 'starting', message: 'Starting TaskDetail sync...' });
       
       const syncOptions = { tableId: 'taskdetail', whseid: 'wmwhse1' };
-      logger.api('POST', `${API_BASE_URL}/sync-table-simple`, syncOptions);
+      logger.api('POST', `${API_BASE_URL}/sync-table`, syncOptions);
       
-      const response = await axios.post(`${API_BASE_URL}/sync-table-simple`, syncOptions);
+      // Try the regular sync-table endpoint
+      let response;
+      try {
+        response = await axios.post(`${API_BASE_URL}/sync-table`, syncOptions);
+      } catch (syncError) {
+        // If that fails with a 404, try the simplified version
+        if (syncError.response && syncError.response.status === 404) {
+          logger.warn('Regular sync-table not found, trying simplified version', syncError);
+          response = await axios.post(`${API_BASE_URL}/sync-table-simple`, syncOptions);
+        } else {
+          // Re-throw other errors
+          throw syncError;
+        }
+      }
       const jobId = response.data.jobId;
       
       setSyncStatus({ status: 'in_progress', message: 'Sync in progress...', jobId });
@@ -78,7 +91,16 @@ const DataSync = () => {
   // Poll sync status
   const pollSyncStatus = async (jobId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/sync-status-simple?jobId=${jobId}`);
+      // Try the regular sync-status endpoint first
+      let response;
+      try {
+        response = await axios.get(`${API_BASE_URL}/sync-status?jobId=${jobId}`);
+      } catch (statusError) {
+        // If that fails, try the fallback
+        logger.warn('Regular sync-status failed, trying fallback', statusError);
+        response = await axios.get(`${API_BASE_URL}/sync-status-fallback?jobId=${jobId}`);
+      }
+      
       const job = response.data.job;
       
       setSyncStatus({

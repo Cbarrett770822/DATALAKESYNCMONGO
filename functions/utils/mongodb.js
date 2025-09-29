@@ -1,8 +1,10 @@
 // MongoDB connection utility
 const mongoose = require('mongoose');
 
-// MongoDB connection string from environment variable or default
+// MongoDB connection string from environment variable or hardcoded value
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db_user:1ZbUxIUsqJxmRRlm@cbcluster01.jrsfdsz.mongodb.net/?retryWrites=true&w=majority&appName=CBCLUSTER01';
+
+console.log('Using MongoDB connection string:', MONGODB_URI.replace(/mongodb\+srv:\/\/[^:]+:[^@]+@/, 'mongodb+srv://[USERNAME]:[PASSWORD]@'));
 
 // Connection options
 const options = {

@@ -44,14 +44,48 @@ exports.handler = async function(event, context) {
       console.log('Connected to MongoDB successfully');
     } catch (dbError) {
       console.error('Failed to connect to MongoDB:', dbError);
-      return errorResponse('Database connection error: ' + dbError.message, null, 500);
+      return errorResponse('Database connection error: ' + dbError.message, { stack: dbError.stack }, 500);
     }
     
     // Check if sync config exists
-    const syncConfig = await SyncConfig.findOne({ tableId }).lean();
+    let syncConfig = await SyncConfig.findOne({ tableId }).lean();
+    
+    // If no config exists, create a default one
     if (!syncConfig) {
-      await mongodb.disconnectFromDatabase();
-      return errorResponse(`Sync configuration for table ${tableId} not found`, null, 404);
+      console.log(`No sync configuration found for ${tableId}, creating default config`);
+      
+      // Default config based on table ID
+      const defaultConfig = {
+        tableId: tableId,
+        tableName: tableId === 'taskdetail' ? 'Task Detail' : 
+                  tableId === 'receipt' ? 'Receipt' : 
+                  tableId === 'receiptdetail' ? 'Receipt Detail' : 
+                  tableId === 'orders' ? 'Orders' : 
+                  tableId === 'orderdetail' ? 'Order Detail' : tableId,
+        description: `Default configuration for ${tableId}`,
+        enabled: true,
+        syncFrequency: 60,
+        initialSync: true,
+        batchSize: 1000,
+        maxRecords: 10000,
+        options: {
+          whseid: requestBody.whseid || 'wmwhse1'
+        }
+      };
+      
+      try {
+        // Create new config
+        const newConfig = new SyncConfig(defaultConfig);
+        await newConfig.save();
+        console.log(`Created default config for ${tableId}`);
+        
+        // Use the new config
+        syncConfig = newConfig.toObject();
+      } catch (configError) {
+        console.error(`Error creating default config for ${tableId}:`, configError);
+        await mongodb.disconnectFromDatabase();
+        return errorResponse(`Failed to create sync configuration for ${tableId}`, configError.message, 500);
+      }
     }
     
     // Check if sync is enabled
