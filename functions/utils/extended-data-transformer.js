@@ -168,11 +168,37 @@ function createOrderDetailBulkWriteOperations(documents) {
   return createBulkWriteOperations(documents, { WHSEID: 1, ORDERKEY: 1, ORDERLINENUMBER: 1 });
 }
 
+// TaskDetail specific transformers
+const taskdetailDateFields = [
+  'STARTTIME', 'ENDTIME', 'RELEASEDATE', 'ADDDATE', 'EDITDATE', 'ORIGINALSTARTTIME', 'ORIGINALENDTIME', 'REQUESTEDSHIPDATE'
+];
+
+const taskdetailNumericFields = [
+  'UOMQTY', 'QTY', 'TAREWGT', 'NETWGT', 'GROSSWGT'
+];
+
+function transformTaskdetailRow(row) {
+  return transformRow(row, taskdetailDateFields, taskdetailNumericFields);
+}
+
+function transformTaskdetailResults(results) {
+  return transformResults(results, transformTaskdetailRow);
+}
+
+function createTaskdetailBulkWriteOperations(documents) {
+  return createBulkWriteOperations(documents, { WHSEID: 1, TASKDETAILKEY: 1 });
+}
+
 module.exports = {
   // Generic functions
   transformRow,
   transformResults,
   createBulkWriteOperations,
+  
+  // TaskDetail specific
+  transformTaskdetailRow,
+  transformTaskdetailResults,
+  createTaskdetailBulkWriteOperations,
   
   // Receipt specific
   transformReceiptRow,

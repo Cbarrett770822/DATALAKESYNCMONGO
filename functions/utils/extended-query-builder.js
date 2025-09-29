@@ -97,7 +97,18 @@ function buildOrderDetailPaginatedQuery(options = {}) {
   return buildPaginatedQuery('CSWMS_wmwhse_ORDERDETAIL', options);
 }
 
+// TaskDetail specific queries
+function buildTaskdetailCountQuery(options = {}) {
+  return buildCountQuery('CSWMS_wmwhse_TASKDETAIL', options);
+}
+
+function buildTaskdetailPaginatedQuery(options = {}) {
+  return buildPaginatedQuery('CSWMS_wmwhse_TASKDETAIL', options);
+}
+
 module.exports = {
+  buildTaskdetailCountQuery,
+  buildTaskdetailPaginatedQuery,
   buildReceiptCountQuery,
   buildReceiptPaginatedQuery,
   buildReceiptDetailCountQuery,

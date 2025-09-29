@@ -1,6 +1,7 @@
 // Netlify function to sync any table data from DataFabric to MongoDB
 const mongodb = require('./utils/mongodb');
 const syncHelper = require('./utils/sync-helper');
+const taskDetailSync = require('./utils/taskdetail-sync');
 const SyncConfig = require('./models/sync-config');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 
@@ -71,8 +72,18 @@ exports.handler = async function(event, context) {
     console.log(`Starting ${tableId} sync with options:`, syncOptions);
     
     try {
-      // Execute sync operation
-      const result = await syncHelper.executeSync(tableId, syncOptions);
+      // Execute sync operation based on table type
+      let result;
+      
+      if (tableId === 'taskdetail') {
+        // Use specialized TaskDetail sync handler with improved error handling
+        console.log('Using specialized TaskDetail sync handler');
+        result = await taskDetailSync.executeTaskDetailSync(syncOptions);
+      } else {
+        // Use generic sync handler for other tables
+        console.log(`Using generic sync handler for ${tableId}`);
+        result = await syncHelper.executeSync(tableId, syncOptions);
+      }
       
       // Disconnect from MongoDB
       await mongodb.disconnectFromDatabase();

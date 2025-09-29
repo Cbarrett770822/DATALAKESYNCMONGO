@@ -35,14 +35,24 @@ This application provides a user-friendly interface to synchronize data from Inf
 
 ## Documentation
 
+### General Documentation
 - [Implementation Plan](IMPLEMENTATION_PLAN.md): Detailed plan for deploying and using the application
 - [Development Plan](WEBAPP_DEVELOPMENT_PLAN.md): Technical overview of the application architecture
 - [User Manual](USER_MANUAL.md): Comprehensive guide for end users
+
+### Deployment Documentation
 - [Deployment Checklist](DEPLOYMENT_CHECKLIST.md): Step-by-step guide for deploying the application
 - [Deployment Troubleshooting](DEPLOYMENT_TROUBLESHOOTING.md): Solutions for common deployment issues
 - [Deployment Summary](DEPLOYMENT_SUMMARY.md): Overview of deployment progress and next steps
+
+### API Documentation
 - [Real API Implementation](REAL_API_IMPLEMENTATION.md): Documentation of the real API implementation
 - [Real API Enhancements](REAL_API_ENHANCEMENTS.md): Details of API error handling and retry mechanisms
+
+### TaskDetail Sync Documentation
+- [TaskDetail Sync Process](docs/TaskDetail_Sync_Process.md): Detailed explanation of what happens when you click Play for TaskDetail
+- [TaskDetail Sync UI Flow](docs/TaskDetail_Sync_UI_Flow.md): User interface flow for TaskDetail synchronization
+- [TaskDetail Sync Implementation Guide](docs/TaskDetail_Sync_Implementation_Guide.md): Technical implementation details
 
 ## Getting Started
 

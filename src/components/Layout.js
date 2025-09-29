@@ -42,6 +42,7 @@ const drawerWidth = 260;
 const navItems = [
   { text: 'Dashboard', path: '/', icon: <DashboardIcon />, description: 'Overview of sync status' },
   { text: 'Data Sync', path: '/sync', icon: <SyncIcon />, description: 'Configure and manage data synchronization' },
+  { text: 'TaskDetail Sync', path: '/taskdetail', icon: <DatabaseIcon />, description: 'TaskDetail synchronization' },
   { text: 'API Tester', path: '/api-tester', icon: <ApiIcon />, description: 'Test DataFabric API queries' },
   { text: 'Settings', path: '/settings', icon: <SettingsIcon />, description: 'Application settings' },
 ];
