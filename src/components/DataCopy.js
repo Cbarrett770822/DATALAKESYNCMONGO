@@ -29,7 +29,7 @@ const DataCopy = () => {
       setError(null);
       setCopyStatus({ status: 'starting', message: 'Starting TaskDetail copy...' });
       
-      const copyOptions = { whseid: 'wmwhse1' };
+      const copyOptions = { whseid: 'wmwhse' };
       logger.api('POST', `${API_BASE_URL}/copy-taskdetail`);
       
       const response = await axios.post(`${API_BASE_URL}/copy-taskdetail`, copyOptions);

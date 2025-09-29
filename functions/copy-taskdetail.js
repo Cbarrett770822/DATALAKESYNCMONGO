@@ -91,7 +91,7 @@ function buildTaskDetailQuery(offset = 0, limit = 1000, whseid = 'wmwhse1') {
       EDITDATE as editDate,
       EDITWHO as editWho
     FROM 
-      "CSWMS_${whseid}_TASKDETAIL"
+      "CSWMS_wmwhse_TASKDETAIL"
     ORDER BY 
       TASKDETAILKEY
     OFFSET ${offset} ROWS
@@ -103,7 +103,7 @@ function buildTaskDetailQuery(offset = 0, limit = 1000, whseid = 'wmwhse1') {
 function buildCountQuery(whseid = 'wmwhse1') {
   return `
     SELECT COUNT(*) as count
-    FROM "CSWMS_${whseid}_TASKDETAIL"
+    FROM "CSWMS_wmwhse_TASKDETAIL"
   `;
 }
 
@@ -150,10 +150,11 @@ exports.handler = async function(event, context) {
   try {
     // Parse request body
     const requestBody = JSON.parse(event.body || '{}');
-    const whseid = requestBody.whseid || 'wmwhse1';
+    // Using fixed warehouse ID 'wmwhse' as per the correct table name
+    const whseid = 'wmwhse';
     const batchSize = requestBody.batchSize || 1000;
     
-    console.log(`Starting TaskDetail copy for warehouse ${whseid}`);
+    console.log(`Starting TaskDetail copy for warehouse ${whseid} (using fixed table name CSWMS_wmwhse_TASKDETAIL)`);
     
     // Connect to MongoDB
     console.log('Calling connectToMongoDB function...');
@@ -230,27 +231,28 @@ exports.handler = async function(event, context) {
       }
       
       totalRecords = parseInt(countResults.results[0].count, 10);
-      console.log(`Total TaskDetail records: ${totalRecords}`);
-      
-      // Create job status object
-      jobId = `job_${Date.now()}`;
-      console.log('Created job ID:', jobId);
-      
-      jobStatus = {
-        id: jobId,
-        totalRecords,
-        processedRecords: 0,
-        insertedRecords: 0,
-        updatedRecords: 0,
-        errorRecords: 0,
-        startTime: new Date(),
+      const defaultConfig = {
+        tableId: tableId,
+        tableName: tableId === 'taskdetail' ? 'Task Detail' : 
+                  tableId === 'receipt' ? 'Receipt' : 
+                  tableId === 'receiptdetail' ? 'Receipt Detail' : 
+                  tableId === 'orders' ? 'Orders' : 
+                  tableId === 'orderdetail' ? 'Order Detail' : tableId,
+        description: `Default configuration for ${tableId}`,
+        enabled: true,
+        syncFrequency: 60,
+        initialSync: true,
+        batchSize: 1000,
+        maxRecords: 10000,
+        options: {
+          whseid: whseid
+        },
         status: 'in_progress'
       };
       
       console.log('Job status initialized:', jobStatus);
     } catch (resultsError) {
       console.error('Error getting count results:', resultsError);
-      console.error('Error name:', resultsError.name);
       console.error('Error message:', resultsError.message);
       if (resultsError.stack) console.error('Stack trace:', resultsError.stack);
       
