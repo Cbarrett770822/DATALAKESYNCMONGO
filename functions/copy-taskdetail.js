@@ -36,15 +36,24 @@ const TaskDetail = mongoose.models.TaskDetail || mongoose.model('TaskDetail', ta
 
 // Connect to MongoDB
 async function connectToMongoDB() {
+  console.log('Attempting to connect to MongoDB...');
+  console.log('Connection string (masked):', MONGODB_URI.replace(/mongodb\+srv:\/\/[^:]+:[^@]+@/, 'mongodb+srv://[USERNAME]:[PASSWORD]@'));
+  
   try {
     await mongoose.connect(MONGODB_URI, {
       useNewUrlParser: true,
-      useUnifiedTopology: true
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000 // 5 seconds timeout
     });
-    console.log('Connected to MongoDB Atlas');
+    
+    console.log('Connected to MongoDB Atlas successfully');
+    console.log('Connection state:', mongoose.connection.readyState);
     return true;
   } catch (error) {
     console.error('MongoDB connection error:', error);
+    console.error('Error name:', error.name);
+    console.error('Error message:', error.message);
+    if (error.stack) console.error('Stack trace:', error.stack);
     return false;
   }
 }
@@ -124,13 +133,17 @@ function createBulkOperations(records) {
 }
 
 exports.handler = async function(event, context) {
+  console.log('copy-taskdetail function called');
+  
   // Handle OPTIONS request (preflight)
   if (event.httpMethod === 'OPTIONS') {
+    console.log('Handling OPTIONS request');
     return handlePreflight();
   }
   
   // Only allow POST requests
   if (event.httpMethod !== 'POST') {
+    console.log(`Invalid method: ${event.httpMethod}`);
     return errorResponse(`Method ${event.httpMethod} not allowed`, null, 405);
   }
   
@@ -143,56 +156,131 @@ exports.handler = async function(event, context) {
     console.log(`Starting TaskDetail copy for warehouse ${whseid}`);
     
     // Connect to MongoDB
+    console.log('Calling connectToMongoDB function...');
     const connected = await connectToMongoDB();
+    console.log('MongoDB connection result:', connected);
+    
     if (!connected) {
+      console.error('MongoDB connection failed, returning error response');
       return errorResponse('Failed to connect to MongoDB', null, 500);
     }
+    
+    console.log('MongoDB connection successful, proceeding...');
     
     // Step 1: Get total count
     console.log('Getting total record count...');
     const countQuery = buildCountQuery(whseid);
-    const countResponse = await ionApi.submitQuery(countQuery);
-    const countQueryId = countResponse.queryId || countResponse.id;
+    console.log('Count query SQL:', countQuery);
     
-    // Wait for count query to complete
-    let countStatus = await ionApi.checkStatus(countQueryId);
-    while (countStatus.status !== 'completed' && countStatus.status !== 'COMPLETED') {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      countStatus = await ionApi.checkStatus(countQueryId);
+    try {
+      console.log('Submitting count query to ION API...');
+      const countResponse = await ionApi.submitQuery(countQuery);
+      console.log('Count query response:', JSON.stringify(countResponse, null, 2));
       
-      if (countStatus.status === 'failed' || countStatus.status === 'FAILED') {
+      if (!countResponse || !countResponse.queryId && !countResponse.id) {
+        console.error('Invalid count query response:', countResponse);
         await disconnectFromMongoDB();
-        return errorResponse('Count query failed', countStatus, 500);
+        return errorResponse('Invalid response from ION API', countResponse, 500);
       }
+      
+      const countQueryId = countResponse.queryId || countResponse.id;
+      console.log('Count query ID:', countQueryId);
+      
+      // Wait for count query to complete
+      console.log('Checking count query status...');
+      let countStatus = await ionApi.checkStatus(countQueryId);
+      console.log('Initial count status:', JSON.stringify(countStatus, null, 2));
+      
+      while (countStatus.status !== 'completed' && countStatus.status !== 'COMPLETED') {
+        console.log(`Query status: ${countStatus.status}, waiting 1 second...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        countStatus = await ionApi.checkStatus(countQueryId);
+        
+        if (countStatus.status === 'failed' || countStatus.status === 'FAILED') {
+          console.error('Count query failed:', JSON.stringify(countStatus, null, 2));
+          await disconnectFromMongoDB();
+          return errorResponse('Count query failed', countStatus, 500);
+        }
+      }
+      
+      console.log('Count query completed successfully');
+    } catch (ionApiError) {
+      console.error('Error calling ION API:', ionApiError);
+      console.error('Error name:', ionApiError.name);
+      console.error('Error message:', ionApiError.message);
+      if (ionApiError.stack) console.error('Stack trace:', ionApiError.stack);
+      
+      await disconnectFromMongoDB();
+      return errorResponse('Error calling ION API', ionApiError.message, 500);
     }
     
-    // Get count results
-    const countResults = await ionApi.getResults(countQueryId);
-    const totalRecords = parseInt(countResults.results[0].count, 10);
-    console.log(`Total TaskDetail records: ${totalRecords}`);
+    // Declare variables in the outer scope
+    let totalRecords, jobId, jobStatus;
     
-    // Create job status object
-    const jobId = `job_${Date.now()}`;
-    const jobStatus = {
-      id: jobId,
-      totalRecords,
-      processedRecords: 0,
-      insertedRecords: 0,
-      updatedRecords: 0,
-      errorRecords: 0,
-      startTime: new Date(),
-      status: 'in_progress'
-    };
+    // Get count results
+    try {
+      console.log('Getting count results...');
+      const countResults = await ionApi.getResults(countQueryId);
+      console.log('Count results:', JSON.stringify(countResults, null, 2));
+      
+      if (!countResults || !countResults.results || !countResults.results[0] || countResults.results[0].count === undefined) {
+        console.error('Invalid count results:', countResults);
+        await disconnectFromMongoDB();
+        return errorResponse('Invalid count results from ION API', countResults, 500);
+      }
+      
+      totalRecords = parseInt(countResults.results[0].count, 10);
+      console.log(`Total TaskDetail records: ${totalRecords}`);
+      
+      // Create job status object
+      jobId = `job_${Date.now()}`;
+      console.log('Created job ID:', jobId);
+      
+      jobStatus = {
+        id: jobId,
+        totalRecords,
+        processedRecords: 0,
+        insertedRecords: 0,
+        updatedRecords: 0,
+        errorRecords: 0,
+        startTime: new Date(),
+        status: 'in_progress'
+      };
+      
+      console.log('Job status initialized:', jobStatus);
+    } catch (resultsError) {
+      console.error('Error getting count results:', resultsError);
+      console.error('Error name:', resultsError.name);
+      console.error('Error message:', resultsError.message);
+      if (resultsError.stack) console.error('Stack trace:', resultsError.stack);
+      
+      await disconnectFromMongoDB();
+      return errorResponse('Error getting count results', resultsError.message, 500);
+    }
     
     // Process the first batch immediately to ensure we have data
-    console.log('Processing first batch...');
-    const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize);
-    
-    // Update job status with first batch results
-    jobStatus.processedRecords += firstBatchResult.processedRecords;
-    jobStatus.insertedRecords += firstBatchResult.insertedRecords;
-    jobStatus.updatedRecords += firstBatchResult.updatedRecords;
-    jobStatus.errorRecords += firstBatchResult.errorRecords;
+    try {
+      console.log('Processing first batch...');
+      const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize);
+      console.log('First batch result:', firstBatchResult);
+      
+      // Update job status with first batch results
+      jobStatus.processedRecords += firstBatchResult.processedRecords;
+      jobStatus.insertedRecords += firstBatchResult.insertedRecords;
+      jobStatus.updatedRecords += firstBatchResult.updatedRecords;
+      jobStatus.errorRecords += firstBatchResult.errorRecords;
+      
+      console.log('Updated job status:', jobStatus);
+    } catch (batchError) {
+      console.error('Error processing first batch:', batchError);
+      console.error('Error name:', batchError.name);
+      console.error('Error message:', batchError.message);
+      if (batchError.stack) console.error('Stack trace:', batchError.stack);
+      
+      // Even if the first batch fails, we'll return a response with the error
+      jobStatus.errorRecords += batchSize;
+      jobStatus.status = 'failed';
+    }
     
     // Return response with job status
     return successResponse({
@@ -228,6 +316,7 @@ async function processTaskDetailBatch(whseid, offset, limit) {
   };
   
   try {
+    console.log('Starting batch processing...');
     // Build and submit query
     const query = buildTaskDetailQuery(offset, limit, whseid);
     const queryResponse = await ionApi.submitQuery(query);
