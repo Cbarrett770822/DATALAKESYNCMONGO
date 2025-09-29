@@ -192,7 +192,7 @@ exports.handler = async function(event, context) {
       let countStatus = await ionApi.checkStatus(countQueryId);
       console.log('Initial count status:', JSON.stringify(countStatus, null, 2));
       
-      while (countStatus.status !== 'completed' && countStatus.status !== 'COMPLETED') {
+      while (countStatus.status !== 'completed' && countStatus.status !== 'COMPLETED' && countStatus.status !== 'FINISHED') {
         console.log(`Query status: ${countStatus.status}, waiting 1 second...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
         countStatus = await ionApi.checkStatus(countQueryId);
@@ -204,7 +204,7 @@ exports.handler = async function(event, context) {
         }
       }
       
-      console.log('Count query completed successfully');
+      console.log('Count query completed successfully with status:', countStatus.status);
     } catch (ionApiError) {
       console.error('Error calling ION API:', ionApiError);
       console.error('Error name:', ionApiError.name);
@@ -224,25 +224,38 @@ exports.handler = async function(event, context) {
       const countResults = await ionApi.getResults(countQueryId);
       console.log('Count results:', JSON.stringify(countResults, null, 2));
       
-      if (!countResults || !countResults.results || !countResults.results[0] || countResults.results[0].count === undefined) {
-        console.error('Invalid count results:', countResults);
+      // Extract count from results based on different possible formats
+      totalRecords = 0;
+      
+      if (countResults && countResults.results && countResults.results[0] && countResults.results[0].count !== undefined) {
+        // Format: { results: [{ count: 123 }] }
+        totalRecords = parseInt(countResults.results[0].count, 10);
+      } else if (countResults && countResults.rows && countResults.rows[0] && countResults.rows[0][0] !== undefined) {
+        // Format: { rows: [[123]] }
+        totalRecords = parseInt(countResults.rows[0][0], 10);
+      } else if (countResults && countResults.data && countResults.data.count !== undefined) {
+        // Format: { data: { count: 123 } }
+        totalRecords = parseInt(countResults.data.count, 10);
+      } else {
+        console.error('Invalid count results format:', countResults);
         await disconnectFromMongoDB();
-        return errorResponse('Invalid count results from ION API', countResults, 500);
+        return errorResponse('Invalid count results format from ION API', countResults, 500);
       }
       
-      totalRecords = parseInt(countResults.results[0].count, 10);
-      const defaultConfig = {
-        tableId: tableId,
-        tableName: tableId === 'taskdetail' ? 'Task Detail' : 
-                  tableId === 'receipt' ? 'Receipt' : 
-                  tableId === 'receiptdetail' ? 'Receipt Detail' : 
-                  tableId === 'orders' ? 'Orders' : 
-                  tableId === 'orderdetail' ? 'Order Detail' : tableId,
-        description: `Default configuration for ${tableId}`,
-        enabled: true,
-        syncFrequency: 60,
-        initialSync: true,
-        batchSize: 1000,
+      console.log(`Total TaskDetail records: ${totalRecords}`);
+      
+      // Create job status object
+      jobId = `job_${Date.now()}`;
+      console.log('Created job ID:', jobId);
+      
+      jobStatus = {
+        id: jobId,
+        totalRecords,
+        processedRecords: 0,
+        insertedRecords: 0,
+        updatedRecords: 0,
+        errorRecords: 0,
+        startTime: new Date(),
         maxRecords: 10000,
         options: {
           whseid: whseid
