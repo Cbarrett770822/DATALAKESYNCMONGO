@@ -40,7 +40,8 @@ const drawerWidth = 260;
 
 // Navigation items
 const navItems = [
-  { text: 'Data Sync', path: '/', icon: <SyncIcon />, description: 'TaskDetail synchronization' },
+  { text: 'Data Copy', path: '/', icon: <SyncIcon />, description: 'Copy TaskDetail data directly' },
+  { text: 'Data Sync', path: '/sync', icon: <SyncIcon />, description: 'TaskDetail synchronization' },
   { text: 'API Tester', path: '/api-tester', icon: <ApiIcon />, description: 'Test DataFabric API queries' },
 ];
 

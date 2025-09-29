@@ -6,6 +6,7 @@ import CssBaseline from '@mui/material/CssBaseline';
 // Import components
 import Layout from './components/Layout';
 import DataSync from './components/DataSync';
+import DataCopy from './components/DataCopy';
 import ApiTester from './components/ApiTester';
 import NotFound from './components/NotFound';
 
@@ -76,7 +77,8 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<DataSync />} />
+            <Route path="/" element={<DataCopy />} />
+            <Route path="/copy" element={<DataCopy />} />
             <Route path="/sync" element={<DataSync />} />
             <Route path="/api-tester" element={<ApiTester />} />
             <Route path="*" element={<NotFound />} />

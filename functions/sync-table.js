@@ -6,6 +6,17 @@ const SyncConfig = require('./models/sync-config');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 
 exports.handler = async function(event, context) {
+  // Set a timeout to ensure we respond before Netlify's 10s limit
+  const TIMEOUT_MS = 8000; // 8 seconds to be safe
+  let timeoutId;
+  
+  // Create a promise that rejects after the timeout
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error('Function execution timed out'));
+    }, TIMEOUT_MS);
+  });
+  
   // Handle OPTIONS request (preflight)
   if (event.httpMethod === 'OPTIONS') {
     return handlePreflight();
