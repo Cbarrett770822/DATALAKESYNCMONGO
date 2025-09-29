@@ -106,7 +106,8 @@ export const checkQueryStatus = async (queryId) => {
 export const getQueryResults = async (queryId, offset = 0, limit = 1000) => {
   try {
     return await retryApiCall(async () => {
-      const response = await api.get(`/get-results?queryId=${queryId}&offset=${offset}&limit=${limit}`);
+      // Use the fixed version of the get-results function
+      const response = await api.get(`/get-results-fixed?queryId=${queryId}&offset=${offset}&limit=${limit}`);
       return response.data;
     });
   } catch (error) {

@@ -1,4 +1,4 @@
-// Netlify function to get the results of a DataFabric query
+// Simplified and fixed version of get-results function
 const ionApi = require('./utils/ion-api');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 
@@ -19,10 +19,6 @@ exports.handler = async function(event, context) {
     }
     
     console.log('Getting results for queryId:', queryId);
-    
-    // Log the query parameters
-    console.log('DIRECT FETCH: Bypassing status check and directly fetching results for debugging');
-    console.log('Query parameters:', { queryId, offset, limit });
     
     // First check the status to get metadata
     console.log('Checking status to get metadata before fetching results');
@@ -48,7 +44,7 @@ exports.handler = async function(event, context) {
       console.log(`Results location from status response: ${statusResponse.location}`);
       location = statusResponse.location;
     }
-      
+    
     // Get the results using the ION API module
     console.log('Fetching results using ION API module');
     const response = await ionApi.getResults(queryId, offset, limit);
@@ -59,14 +55,6 @@ exports.handler = async function(event, context) {
     // If we got an empty response but have column definitions from status, use those
     if ((!response || !response.rows) && columns.length > 0) {
       console.log('Using metadata from status response since results response is empty');
-      
-      // Create a synthetic response with the metadata from status
-      const syntheticResponse = {
-        columns: columns,
-        rows: [],
-        total: rowCount,
-        message: 'Results created from status metadata'
-      };
       
       // Return the synthetic response
       return successResponse({
