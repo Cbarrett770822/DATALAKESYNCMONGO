@@ -44,6 +44,7 @@ async function retryApiCall(apiCall, maxRetries = MAX_RETRIES, delay = RETRY_DEL
 
 // Create axios instance with base URL
 const api = axios.create({
+  // Use relative path for Netlify functions which will resolve to the current domain
   baseURL: process.env.REACT_APP_API_URL || '/.netlify/functions',
   timeout: 30000, // 30 seconds
   headers: {

@@ -9,7 +9,8 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 // API base URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8888/.netlify/functions';
+const API_BASE_URL = process.env.REACT_APP_API_URL || '/.netlify/functions';
+// For deployed Netlify site, we use relative path which will resolve to the current domain
 
 // Logger utility
 const logger = {
