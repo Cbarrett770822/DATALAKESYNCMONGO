@@ -10,11 +10,11 @@ This application provides a user-friendly interface to synchronize data from Inf
 
 ## Features
 
-- **Data Synchronization**: Sync taskdetail data from Infor WMS DataLake to MongoDB Atlas
-- **Configurable Sync**: Filter by warehouse, task type, date range, and more
-- **Dashboard**: View sync status and history at a glance
+- **TaskDetail Synchronization**: Sync taskdetail data from Infor WMS DataLake to MongoDB Atlas
+- **Real-time Progress Tracking**: Monitor sync progress with detailed statistics
 - **Sync History**: Track all sync jobs with detailed statistics
-- **Settings Management**: Configure connection, sync, schedule, and notification settings
+- **API Testing**: Test DataFabric API queries directly from the UI
+- **Comprehensive Logging**: Detailed console logging for debugging
 - **Responsive UI**: Modern Material UI design that works on desktop and mobile
 
 ## Tech Stack

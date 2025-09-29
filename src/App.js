@@ -5,12 +5,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 
 // Import components
 import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import SyncConfig from './components/SyncConfig';
-import SyncHistory from './components/SyncHistory';
-import Settings from './components/Settings';
+import DataSync from './components/DataSync';
 import ApiTester from './components/ApiTester';
-import TaskDetailSync from './components/TaskDetailSync';
 import NotFound from './components/NotFound';
 
 // Create theme
@@ -80,11 +76,8 @@ function App() {
       <Router>
         <Layout>
           <Routes>
-            <Route path="/" element={<Dashboard />} />
-            <Route path="/sync" element={<SyncConfig />} />
-            <Route path="/taskdetail" element={<TaskDetailSync />} />
-            <Route path="/history" element={<SyncHistory />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/" element={<DataSync />} />
+            <Route path="/sync" element={<DataSync />} />
             <Route path="/api-tester" element={<ApiTester />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -40,11 +40,8 @@ const drawerWidth = 260;
 
 // Navigation items
 const navItems = [
-  { text: 'Dashboard', path: '/', icon: <DashboardIcon />, description: 'Overview of sync status' },
-  { text: 'Data Sync', path: '/sync', icon: <SyncIcon />, description: 'Configure and manage data synchronization' },
-  { text: 'TaskDetail Sync', path: '/taskdetail', icon: <DatabaseIcon />, description: 'TaskDetail synchronization' },
+  { text: 'Data Sync', path: '/', icon: <SyncIcon />, description: 'TaskDetail synchronization' },
   { text: 'API Tester', path: '/api-tester', icon: <ApiIcon />, description: 'Test DataFabric API queries' },
-  { text: 'Settings', path: '/settings', icon: <SettingsIcon />, description: 'Application settings' },
 ];
 
 function Layout({ children }) {
@@ -181,21 +178,9 @@ function Layout({ children }) {
             {navItems.find((item) => item.path === location.pathname)?.text || 'DataFabric Sync'}
           </Typography>
           
-          <Tooltip title="Notifications">
-            <IconButton color="inherit">
-              <Badge badgeContent={3} color="error">
-                <NotificationsIcon />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-          
-          <Tooltip title="Settings">
-            <IconButton 
-              color="inherit" 
-              component={RouterLink}
-              to="/settings"
-            >
-              <SettingsIcon />
+          <Tooltip title="Refresh">
+            <IconButton color="inherit" onClick={() => window.location.reload()}>
+              <RefreshIcon />
             </IconButton>
           </Tooltip>
         </Toolbar>
