@@ -69,12 +69,22 @@ exports.handler = async function(event, context) {
     await disconnectFromMongoDB();
     
     if (!jobStatus) {
-      // If job not found, return a default status
+      // If job not found, return a default in_progress status
+      // This handles the case where the frontend generates a client-side job ID
+      // that doesn't exist in the database yet
+      logger.info(`Job ID ${jobId} not found in database, returning default status`);
+      
       return successResponse({
         job: {
           id: jobId,
-          status: 'not_found',
-          message: 'Job not found'
+          status: 'in_progress',
+          processedRecords: 0,
+          totalRecords: 1000, // Placeholder value
+          insertedRecords: 0,
+          updatedRecords: 0,
+          errorRecords: 0,
+          percentComplete: 0,
+          message: 'Job started, waiting for first update...'
         }
       });
     }
@@ -96,7 +106,7 @@ exports.handler = async function(event, context) {
       }
     });
   } catch (error) {
-    console.error('Error getting job status:', error);
+    logger.error('Error getting job status: ' + error.message);
     return errorResponse('Failed to get job status', error.message, 500);
   }
 };

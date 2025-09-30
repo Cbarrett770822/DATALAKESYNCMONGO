@@ -102,9 +102,12 @@ const DataCopy = () => {
         percentComplete: job.percentComplete
       });
 
-      if (job.status === 'in_progress' || job.status === 'pending') {
-        setTimeout(() => pollCopyStatus(jobId), 3000);
+      if (job.status === 'in_progress' || job.status === 'pending' || job.status === 'not_found') {
+        // Continue polling for these statuses
+        const pollDelay = job.status === 'not_found' ? 5000 : 3000; // Longer delay for not_found
+        setTimeout(() => pollCopyStatus(jobId), pollDelay);
       } else {
+        // For completed or failed status, stop polling
         setCopying(false);
       }
     } catch (err) {
@@ -120,6 +123,8 @@ const DataCopy = () => {
       case 'completed': return 'Copy completed successfully';
       case 'failed': return 'Copy failed';
       case 'in_progress': return 'Copy in progress...';
+      case 'pending': return 'Copy pending...';
+      case 'not_found': return 'Waiting for job to start...';
       default: return 'Unknown status';
     }
   };
