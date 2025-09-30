@@ -57,6 +57,7 @@ async function disconnectFromMongoDB() {
     console.log('Disconnected from MongoDB');
   } catch (error) {
     console.error('Error disconnecting from MongoDB:', error);
+  }
 }
 
 // Build SQL query for TaskDetail
@@ -210,8 +211,9 @@ exports.handler = async function(event, context) {
       const countResults = await ionApi.getResults(countQueryId);
       console.log('Count results:', JSON.stringify(countResults, null, 2));
       
-      // Define batch size for processing - using small batch size (1 record at a time)
-      const batchSize = 1;
+      // Override batch size for processing - using small batch size (1 record at a time)
+      // This will override the batchSize from the request body
+      const processingBatchSize = 1;
       
       // Extract count from results based on different possible formats
       let totalRecords = 0;
@@ -234,7 +236,7 @@ exports.handler = async function(event, context) {
       console.log(`Total TaskDetail records: ${totalRecords}`);
       
       // Use client-provided job ID if available, otherwise create one
-      jobId = requestBody.clientJobId || `job_${Date.now()}`;
+      const jobId = requestBody.clientJobId || `job_${Date.now()}`;
       logger.info(`Using job ID: ${jobId} (${requestBody.clientJobId ? 'client-provided' : 'server-generated'})`);
       
       // Check if a job with this ID already exists
@@ -252,7 +254,7 @@ exports.handler = async function(event, context) {
       }
 
       // Initialize job status in MongoDB
-      jobStatus = new JobStatus({
+      const jobStatus = new JobStatus({
         jobId,
         operation: 'copy-taskdetail',
         totalRecords: totalRecords,
@@ -281,7 +283,7 @@ exports.handler = async function(event, context) {
     // Process the first batch immediately to ensure we have data
     try {
       console.log('Processing first batch...');
-      const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize, jobId);
+      const firstBatchResult = await processTaskDetailBatch(whseid, 0, processingBatchSize, jobId);
       console.log('First batch result:', firstBatchResult);
       
       // Update job status with first batch results
@@ -313,7 +315,7 @@ exports.handler = async function(event, context) {
       await JobStatus.findOneAndUpdate(
         { jobId },
         { 
-          $inc: { errorRecords: batchSize },
+          $inc: { errorRecords: processingBatchSize },
           $set: {
             status: 'failed',
             message: `Error processing first batch: ${batchError.message}`,
@@ -371,7 +373,7 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
     
     // Wait for query to complete
     let queryStatus = await ionApi.checkStatus(queryId);
-    while (queryStatus.status !== 'completed' && queryStatus.status !== 'COMPLETED') {
+    while (queryStatus.status !== 'completed' && queryStatus.status !== 'COMPLETED' && queryStatus.status !== 'FINISHED') {
       await new Promise(resolve => setTimeout(resolve, 1000));
       queryStatus = await ionApi.checkStatus(queryId);
       
@@ -558,3 +560,6 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
     return result;
   }
 }
+
+// Export the processTaskDetailBatch function for testing
+exports.processTaskDetailBatch = processTaskDetailBatch;
