@@ -7,6 +7,14 @@ const config = {
 // Export the config for Netlify
 exports.config = config;
 
+// Simple logger for consistent logging
+const logger = {
+  info: (message) => console.log(message),
+  error: (message) => console.error(message),
+  warn: (message) => console.warn(message),
+  debug: (message) => console.log(message)
+};
+
 const mongoose = require('mongoose');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 const ionApi = require('./utils/ion-api');

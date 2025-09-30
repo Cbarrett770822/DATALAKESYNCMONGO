@@ -3,6 +3,14 @@ const mongoose = require('mongoose');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 const JobStatus = require('./models/JobStatus');
 
+// Simple logger for consistent logging
+const logger = {
+  info: (message) => console.log(message),
+  error: (message) => console.error(message),
+  warn: (message) => console.warn(message),
+  debug: (message) => console.log(message)
+};
+
 // MongoDB connection string
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db_user:1ZbUxIUsqJxmRRlm@cbcluster01.jrsfdsz.mongodb.net/?retryWrites=true&w=majority&appName=CBCLUSTER01';
 
@@ -10,18 +18,18 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db
 async function connectToMongoDB() {
   try {
     if (mongoose.connection.readyState !== 1) {
-      console.log('Connecting to MongoDB...');
+      logger.info('Connecting to MongoDB...');
       await mongoose.connect(MONGODB_URI, {
         useNewUrlParser: true,
         useUnifiedTopology: true
       });
-      console.log('Connected to MongoDB');
+      logger.info('Connected to MongoDB');
     } else {
-      console.log('Already connected to MongoDB');
+      logger.info('Already connected to MongoDB');
     }
     return true;
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    logger.error('MongoDB connection error: ' + error.message);
     return false;
   }
 }
@@ -31,10 +39,10 @@ async function disconnectFromMongoDB() {
   try {
     if (mongoose.connection.readyState !== 0) {
       await mongoose.connection.close();
-      console.log('Disconnected from MongoDB');
+      logger.info('Disconnected from MongoDB');
     }
   } catch (error) {
-    console.error('Error disconnecting from MongoDB:', error);
+    logger.error('Error disconnecting from MongoDB: ' + error.message);
   }
 }
 
