@@ -158,8 +158,8 @@ exports.handler = async function(event, context) {
     const requestBody = JSON.parse(event.body || '{}');
     // Using fixed warehouse ID 'wmwhse' as per the correct table name
     const whseid = 'wmwhse';
-    // Use a small batch size (1 record at a time) for better debugging
-    const batchSize = 1;
+    // Use a batch size of 1000 records for efficient processing
+    const batchSize = 1000;
     
     console.log(`Starting TaskDetail copy for warehouse ${whseid} (using fixed table name CSWMS_wmwhse_TASKDETAIL)`);
     
@@ -332,6 +332,45 @@ exports.handler = async function(event, context) {
     // Get the latest job status from MongoDB
     const updatedJobStatus = await JobStatus.findOne({ jobId });
     
+    // Start background processing of remaining records
+    // This will continue after the response is sent
+    (async () => {
+      try {
+        logger.info(`Starting background processing of remaining records for job ${jobId}`);
+        let offset = updatedJobStatus.processedRecords || 0;
+        
+        // Continue processing in batches until all records are processed
+        while (offset < totalRecords) {
+          try {
+            logger.info(`Processing batch at offset ${offset} (${Math.round((offset / totalRecords) * 100)}% complete)`);
+            const batchResult = await processTaskDetailBatch(whseid, offset, batchSize, jobId);
+            offset += batchSize;
+            await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between batches
+          } catch (error) {
+            logger.error(`Error processing batch at offset ${offset}: ${error.message}`);
+            // Continue with next batch despite errors
+            offset += batchSize;
+          }
+        }
+        
+        // Mark job as completed
+        await JobStatus.findOneAndUpdate(
+          { jobId },
+          { 
+            $set: {
+              status: 'completed',
+              message: `Processed all ${totalRecords} records`,
+              endTime: new Date(),
+              percentComplete: 100
+            }
+          }
+        );
+        logger.info(`Background processing completed for job ${jobId}`);
+      } catch (error) {
+        logger.error(`Fatal error in background processing: ${error.message}`);
+      }
+    })().catch(error => logger.error(`Unhandled error in background processing: ${error.message}`));
+    
     // Return response with job status
     return successResponse({
       message: 'TaskDetail copy started as background process',
@@ -410,9 +449,10 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
     
     // Get results
     logger.info(`Query completed, fetching results for queryId: ${queryId}`);
-    const queryResults = await ionApi.getResults(queryId);
+    // Pass the limit parameter to ensure we get the correct batch size
+    const queryResults = await ionApi.getResults(queryId, 0, limit);
     const records = queryResults.results || [];
-    logger.info(`Retrieved ${records.length} records from ION API`);
+    logger.info(`Retrieved ${records.length} records from ION API (requested limit: ${limit})`);
     
     // Transform records
     const transformedRecords = transformData(records);
