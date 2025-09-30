@@ -149,6 +149,10 @@ exports.handler = async function(event, context) {
     return errorResponse(`Method ${event.httpMethod} not allowed`, null, 405);
   }
   
+  // Define variables at the top level of the function for proper scope
+  let jobId;
+  let totalRecords = 0;
+  
   try {
     // Parse request body
     const requestBody = JSON.parse(event.body || '{}');
@@ -235,7 +239,7 @@ exports.handler = async function(event, context) {
       console.log(`Total TaskDetail records: ${totalRecords}`);
       
       // Use client-provided job ID if available, otherwise create one
-      const jobId = requestBody.clientJobId || `job_${Date.now()}`;
+      jobId = requestBody.clientJobId || `job_${Date.now()}`;
       logger.info(`Using job ID: ${jobId} (${requestBody.clientJobId ? 'client-provided' : 'server-generated'})`);
       
       // Check if a job with this ID already exists
@@ -253,7 +257,7 @@ exports.handler = async function(event, context) {
       }
 
       // Initialize job status in MongoDB
-      const jobStatus = new JobStatus({
+      let jobStatus = new JobStatus({
         jobId,
         operation: 'copy-taskdetail',
         totalRecords: totalRecords,
