@@ -137,8 +137,16 @@ function createBulkOperations(records) {
 }
 
 exports.handler = async function(event, context) {
-  console.log('copy-taskdetail function called');
-    console.log(`Invalid method: ${event.httpMethod}`);
+  logger.info('copy-taskdetail function called');
+  
+  // Handle OPTIONS request
+  if (event.httpMethod === 'OPTIONS') {
+    return handlePreflight();
+  }
+  
+  // Only allow POST method
+  if (event.httpMethod !== 'POST') {
+    logger.error(`Invalid method: ${event.httpMethod}`);
     return errorResponse(`Method ${event.httpMethod} not allowed`, null, 405);
   }
   
