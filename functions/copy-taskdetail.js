@@ -1,8 +1,11 @@
 // Background function to copy TaskDetail data from DataLake to MongoDB Atlas
 // This runs as a background function with a 15-minute timeout
-export const config = {
+const config = {
   background: true
 };
+
+// Export the config for Netlify
+exports.config = config;
 
 const mongoose = require('mongoose');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
