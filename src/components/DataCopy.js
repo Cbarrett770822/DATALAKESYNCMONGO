@@ -29,7 +29,14 @@ const DataCopy = () => {
       setError(null);
       setCopyStatus({ status: 'starting', message: 'Starting TaskDetail copy...' });
       
-      const copyOptions = { whseid: 'wmwhse' };
+      // Generate a client-side job ID that will be consistent
+      const clientJobId = `job_${Date.now()}`;
+      logger.info(`Generated client-side job ID: ${clientJobId}`);
+      
+      const copyOptions = { 
+        whseid: 'wmwhse',
+        clientJobId: clientJobId // Pass the client job ID to the backend
+      };
       logger.api('POST', `${API_BASE_URL}/copy-taskdetail`);
       
       // For background functions, the initial response will come back quickly
@@ -61,19 +68,19 @@ const DataCopy = () => {
         // This is actually expected for background functions
         logger.info('Function started as background process (504 expected)');
         
-        // Create a synthetic job ID since we didn't get one from the server
-        const jobId = `job_${Date.now()}`;
+        // Use the client-generated job ID we already sent to the server
+        logger.info(`Using client-generated job ID: ${clientJobId}`);
         
         setCopyStatus({
           status: 'in_progress',
           message: 'Copy started as background process. This may take several minutes...',
-          jobId,
+          jobId: clientJobId,
           processedRecords: 0,
           percentComplete: 0
         });
         
         // Start polling for status after a delay
-        setTimeout(() => pollCopyStatus(jobId), 10000);
+        setTimeout(() => pollCopyStatus(clientJobId), 10000);
       } else {
         // This is an actual error
         logger.error('Failed to start copy: ' + (err.message || 'Unknown error'));

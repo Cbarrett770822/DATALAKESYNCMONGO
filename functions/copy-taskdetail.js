@@ -132,22 +132,12 @@ function createBulkOperations(records) {
     updateOne: {
       filter: { taskId: record.taskId, whseid: record.whseid },
       update: { $set: record },
-      upsert: true
     }
   }));
 }
 
 exports.handler = async function(event, context) {
   console.log('copy-taskdetail function called');
-  
-  // Handle OPTIONS request (preflight)
-  if (event.httpMethod === 'OPTIONS') {
-    console.log('Handling OPTIONS request');
-    return handlePreflight();
-  }
-  
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
     console.log(`Invalid method: ${event.httpMethod}`);
     return errorResponse(`Method ${event.httpMethod} not allowed`, null, 405);
   }
@@ -237,9 +227,23 @@ exports.handler = async function(event, context) {
       
       console.log(`Total TaskDetail records: ${totalRecords}`);
       
-      // Create job ID
-      jobId = `job_${Date.now()}`;
-      logger.info(`Created job ID: ${jobId}`);
+      // Use client-provided job ID if available, otherwise create one
+      jobId = requestBody.clientJobId || `job_${Date.now()}`;
+      logger.info(`Using job ID: ${jobId} (${requestBody.clientJobId ? 'client-provided' : 'server-generated'})`);
+      
+      // Check if a job with this ID already exists
+      const existingJob = await JobStatus.findOne({ jobId });
+      if (existingJob) {
+        logger.info(`Job with ID ${jobId} already exists, returning existing job status`);
+        return successResponse({
+          message: 'Job already in progress',
+          jobId,
+          status: existingJob.status,
+          totalRecords: existingJob.totalRecords,
+          processedRecords: existingJob.processedRecords,
+          percentComplete: existingJob.percentComplete
+        });
+      }
 
       // Initialize job status in MongoDB
       jobStatus = new JobStatus({
