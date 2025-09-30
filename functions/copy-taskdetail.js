@@ -75,45 +75,10 @@ function buildTaskDetailQuery(offset = 0, limit = 1000, whseid = 'wmwhse1') {
   const endRow = offset + limit;
   
   return `
-    SELECT 
-      taskId,
-      whseid,
-      tasktype,
-      status,
-      priority,
-      pickdetailkey,
-      storerkey,
-      sku,
-      loc,
-      lot,
-      qty,
-      uom,
-      fromLoc,
-      toLoc,
-      addDate,
-      addWho,
-      editDate,
-      editWho
+    SELECT *
     FROM (
       SELECT 
-        TASKDETAILKEY as taskId,
-        WHSEID as whseid,
-        TASKTYPE as tasktype,
-        "STATUS" as status,
-        PRIORITY as priority,
-        PICKDETAILKEY as pickdetailkey,
-        STORERKEY as storerkey,
-        SKU as sku,
-        LOC as loc,
-        LOT as lot,
-        QTY as qty,
-        UOM as uom,
-        FROMLOC as fromLoc,
-        TOLOC as toLoc,
-        ADDDATE as addDate,
-        ADDWHO as addWho,
-        EDITDATE as editDate,
-        EDITWHO as editWho,
+        *,
         ROW_NUMBER() OVER (ORDER BY TASKDETAILKEY) AS row_num
       FROM 
         "CSWMS_wmwhse_TASKDETAIL"
