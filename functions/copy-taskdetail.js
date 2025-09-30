@@ -154,7 +154,8 @@ exports.handler = async function(event, context) {
     const requestBody = JSON.parse(event.body || '{}');
     // Using fixed warehouse ID 'wmwhse' as per the correct table name
     const whseid = 'wmwhse';
-    const batchSize = requestBody.batchSize || 1000;
+    // Use a small batch size (1 record at a time) for better debugging
+    const batchSize = 1;
     
     console.log(`Starting TaskDetail copy for warehouse ${whseid} (using fixed table name CSWMS_wmwhse_TASKDETAIL)`);
     
@@ -211,9 +212,7 @@ exports.handler = async function(event, context) {
       const countResults = await ionApi.getResults(countQueryId);
       console.log('Count results:', JSON.stringify(countResults, null, 2));
       
-      // Override batch size for processing - using small batch size (1 record at a time)
-      // This will override the batchSize from the request body
-      const processingBatchSize = 1;
+      // We're already using a batch size of 1 record at a time (defined earlier)
       
       // Extract count from results based on different possible formats
       let totalRecords = 0;
@@ -283,7 +282,7 @@ exports.handler = async function(event, context) {
     // Process the first batch immediately to ensure we have data
     try {
       console.log('Processing first batch...');
-      const firstBatchResult = await processTaskDetailBatch(whseid, 0, processingBatchSize, jobId);
+      const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize, jobId);
       console.log('First batch result:', firstBatchResult);
       
       // Update job status with first batch results
@@ -315,7 +314,7 @@ exports.handler = async function(event, context) {
       await JobStatus.findOneAndUpdate(
         { jobId },
         { 
-          $inc: { errorRecords: processingBatchSize },
+          $inc: { errorRecords: batchSize },
           $set: {
             status: 'failed',
             message: `Error processing first batch: ${batchError.message}`,
@@ -346,6 +345,27 @@ exports.handler = async function(event, context) {
     });
   } catch (error) {
     console.error('Error in copy-taskdetail function:', error);
+    
+    // If there's a jobId in scope, try to update its status
+    try {
+      if (typeof jobId !== 'undefined') {
+        await JobStatus.findOneAndUpdate(
+          { jobId },
+          { 
+            $set: {
+              status: 'failed',
+              message: `Error in copy-taskdetail function: ${error.message}`,
+              error: error.message,
+              endTime: new Date()
+            }
+          }
+        );
+        console.log(`Updated job status in MongoDB for job ${jobId} with error information`);
+      }
+    } catch (updateError) {
+      console.error('Error updating job status:', updateError);
+    }
+    
     await disconnectFromMongoDB();
     return errorResponse('Failed to copy TaskDetail data', error.message, 500);
   }
