@@ -24,14 +24,16 @@ const DataCopy = () => {
   // Start copy process
   const startCopy = async () => {
     logger.info('Starting TaskDetail copy process');
+    
+    // Generate a client-side job ID that will be consistent
+    // Moved outside try block to be accessible in catch block
+    const clientJobId = `job_${Date.now()}`;
+    logger.info(`Generated client-side job ID: ${clientJobId}`);
+    
     try {
       setCopying(true);
       setError(null);
       setCopyStatus({ status: 'starting', message: 'Starting TaskDetail copy...' });
-      
-      // Generate a client-side job ID that will be consistent
-      const clientJobId = `job_${Date.now()}`;
-      logger.info(`Generated client-side job ID: ${clientJobId}`);
       
       const copyOptions = { 
         whseid: 'wmwhse',
