@@ -10,6 +10,7 @@ exports.config = config;
 const mongoose = require('mongoose');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 const ionApi = require('./utils/ion-api');
+const JobStatus = require('./models/JobStatus');
 
 // MongoDB connection string
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db_user:1ZbUxIUsqJxmRRlm@cbcluster01.jrsfdsz.mongodb.net/?retryWrites=true&w=majority&appName=CBCLUSTER01';
@@ -205,12 +206,11 @@ exports.handler = async function(event, context) {
       const countResults = await ionApi.getResults(countQueryId);
       console.log('Count results:', JSON.stringify(countResults, null, 2));
       
-      // Declare variables for job tracking
-      let totalRecords, jobId, jobStatus;
-      const batchSize = 1000; // Define batch size for processing
+      // Define batch size for processing
+      const batchSize = 1000;
       
       // Extract count from results based on different possible formats
-      totalRecords = 0;
+      let totalRecords = 0;
       
       if (countResults && countResults.results && countResults.results[0] && countResults.results[0].count !== undefined) {
         // Format: { results: [{ count: 123 }] }
@@ -229,32 +229,33 @@ exports.handler = async function(event, context) {
       
       console.log(`Total TaskDetail records: ${totalRecords}`);
       
-      // Create job status object
+      // Create job ID
       jobId = `job_${Date.now()}`;
-      console.log('Created job ID:', jobId);
-      
-      jobStatus = {
-        id: jobId,
-        totalRecords,
+      logger.info(`Created job ID: ${jobId}`);
+
+      // Initialize job status in MongoDB
+      jobStatus = new JobStatus({
+        jobId,
+        operation: 'copy-taskdetail',
+        totalRecords: totalRecords,
         processedRecords: 0,
         insertedRecords: 0,
         updatedRecords: 0,
         errorRecords: 0,
         startTime: new Date(),
-        maxRecords: 10000,
-        options: {
-          whseid: whseid
-        },
-        status: 'in_progress'
-      };
+        options: { whseid },
+        status: 'in_progress',
+        message: 'Starting TaskDetail copy operation'
+      });
       
-      console.log('Job status initialized:', jobStatus);
+      // Save initial job status to MongoDB
+      await jobStatus.save();
+      logger.info(`Job status initialized in MongoDB: ${JSON.stringify(jobStatus.toObject())}`);
     } catch (error) {
       console.error('Error in count query process:', error);
       console.error('Error name:', error.name);
       console.error('Error message:', error.message);
       if (error.stack) console.error('Stack trace:', error.stack);
-      
       await disconnectFromMongoDB();
       return errorResponse('Error in count query process', error.message, 500);
     }
@@ -262,40 +263,65 @@ exports.handler = async function(event, context) {
     // Process the first batch immediately to ensure we have data
     try {
       console.log('Processing first batch...');
-      const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize);
+      const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize, jobId);
       console.log('First batch result:', firstBatchResult);
       
       // Update job status with first batch results
-      jobStatus.processedRecords += firstBatchResult.processedRecords;
-      jobStatus.insertedRecords += firstBatchResult.insertedRecords;
-      jobStatus.updatedRecords += firstBatchResult.updatedRecords;
-      jobStatus.errorRecords += firstBatchResult.errorRecords;
+      await JobStatus.findOneAndUpdate(
+        { jobId },
+        { 
+          $inc: { 
+            processedRecords: firstBatchResult.processedRecords,
+            insertedRecords: firstBatchResult.insertedRecords,
+            updatedRecords: firstBatchResult.updatedRecords,
+            errorRecords: firstBatchResult.errorRecords
+          },
+          $set: {
+            percentComplete: Math.round((firstBatchResult.processedRecords / totalRecords) * 100),
+            message: 'First batch processed successfully'
+          }
+        },
+        { new: true }
+      );
       
-      console.log('Updated job status:', jobStatus);
+      console.log('Updated job status in MongoDB');
     } catch (batchError) {
       console.error('Error processing first batch:', batchError);
       console.error('Error name:', batchError.name);
       console.error('Error message:', batchError.message);
       if (batchError.stack) console.error('Stack trace:', batchError.stack);
       
-      // Even if the first batch fails, we'll return a response with the error
-      jobStatus.errorRecords += batchSize;
-      jobStatus.status = 'failed';
+      // Even if the first batch fails, update MongoDB with the error
+      await JobStatus.findOneAndUpdate(
+        { jobId },
+        { 
+          $inc: { errorRecords: batchSize },
+          $set: {
+            status: 'failed',
+            message: `Error processing first batch: ${batchError.message}`,
+            error: batchError.message,
+            endTime: new Date()
+          }
+        }
+      );
     }
+    
+    // Get the latest job status from MongoDB
+    const updatedJobStatus = await JobStatus.findOne({ jobId });
     
     // Return response with job status
     return successResponse({
-      message: 'TaskDetail copy started',
+      message: 'TaskDetail copy started as background process',
       jobId,
       totalRecords,
-      status: 'in_progress',
+      status: updatedJobStatus.status,
       firstBatchProcessed: true,
       progress: {
-        processedRecords: jobStatus.processedRecords,
-        insertedRecords: jobStatus.insertedRecords,
-        updatedRecords: jobStatus.updatedRecords,
-        errorRecords: jobStatus.errorRecords,
-        percentComplete: Math.round((jobStatus.processedRecords / totalRecords) * 100)
+        processedRecords: updatedJobStatus.processedRecords,
+        insertedRecords: updatedJobStatus.insertedRecords,
+        updatedRecords: updatedJobStatus.updatedRecords,
+        errorRecords: updatedJobStatus.errorRecords,
+        percentComplete: updatedJobStatus.percentComplete
       }
     });
   } catch (error) {
@@ -306,7 +332,7 @@ exports.handler = async function(event, context) {
 };
 
 // Process a single batch of TaskDetail records
-async function processTaskDetailBatch(whseid, offset, limit) {
+async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
   console.log(`Processing batch: offset=${offset}, limit=${limit}`);
   
   const result = {
@@ -361,11 +387,49 @@ async function processTaskDetailBatch(whseid, offset, limit) {
     result.insertedRecords = bulkResult.insertedCount || 0;
     result.updatedRecords = bulkResult.modifiedCount || 0;
     
+    // Update job status in MongoDB if jobId is provided
+    if (jobId) {
+      try {
+        await JobStatus.findOneAndUpdate(
+          { jobId },
+          { 
+            $inc: { 
+              processedRecords: result.processedRecords,
+              insertedRecords: result.insertedRecords,
+              updatedRecords: result.updatedRecords
+            }
+          }
+        );
+        console.log(`Updated job status in MongoDB for job ${jobId}`);
+      } catch (updateError) {
+        console.error('Error updating job status in MongoDB:', updateError);
+      }
+    }
+    
     console.log(`Batch processed: ${result.processedRecords} records, ${result.insertedRecords} inserted, ${result.updatedRecords} updated`);
     return result;
   } catch (error) {
     console.error('Error processing batch:', error);
     result.errorRecords = limit;
+    
+    // Update job status in MongoDB if jobId is provided
+    if (jobId) {
+      try {
+        await JobStatus.findOneAndUpdate(
+          { jobId },
+          { 
+            $inc: { errorRecords: limit },
+            $set: {
+              message: `Error processing batch at offset ${offset}: ${error.message}`
+            }
+          }
+        );
+        console.log(`Updated job status in MongoDB for job ${jobId} with error`);
+      } catch (updateError) {
+        console.error('Error updating job status in MongoDB:', updateError);
+      }
+    }
+    
     return result;
   }
 }
