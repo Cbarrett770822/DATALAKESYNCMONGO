@@ -344,7 +344,7 @@ exports.handler = async function(event, context) {
 
 // Process a single batch of TaskDetail records
 async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
-  console.log(`Processing batch: offset=${offset}, limit=${limit}`);
+  logger.info(`Processing batch: offset=${offset}, limit=${limit}, jobId=${jobId || 'none'}`);
   
   const result = {
     processedRecords: 0,
@@ -354,11 +354,13 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
   };
   
   try {
-    console.log('Starting batch processing...');
+    logger.info('Starting batch processing...');
     // Build and submit query
     const query = buildTaskDetailQuery(offset, limit, whseid);
+    logger.info(`Submitting query to ION API: ${query.replace(/\s+/g, ' ').trim()}`);
     const queryResponse = await ionApi.submitQuery(query);
     const queryId = queryResponse.queryId || queryResponse.id;
+    logger.info(`Query submitted successfully, queryId: ${queryId}`);
     
     // Wait for query to complete
     let queryStatus = await ionApi.checkStatus(queryId);
@@ -367,77 +369,148 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
       queryStatus = await ionApi.checkStatus(queryId);
       
       if (queryStatus.status === 'failed' || queryStatus.status === 'FAILED') {
-        console.error('Batch query failed:', queryStatus);
+        logger.error(`Batch query failed: ${JSON.stringify(queryStatus)}`);
         result.errorRecords = limit;
         return result;
       }
     }
     
     // Get results
+    logger.info(`Query completed, fetching results for queryId: ${queryId}`);
     const queryResults = await ionApi.getResults(queryId);
     const records = queryResults.results || [];
-    console.log(`Retrieved ${records.length} records`);
+    logger.info(`Retrieved ${records.length} records from ION API`);
     
     // Transform records
     const transformedRecords = transformData(records);
     
     // Skip if no records
     if (transformedRecords.length === 0) {
-      console.log('No records to process, skipping batch');
+      logger.info('No records to process, skipping batch');
       return result;
+    }
+    
+    // Log sample record structure
+    if (transformedRecords.length > 0) {
+      const sampleRecord = transformedRecords[0];
+      const sampleKeys = Object.keys(sampleRecord).slice(0, 10); // Show first 10 keys
+      logger.info(`Sample record structure (first 10 fields): ${JSON.stringify(sampleKeys)}`);
     }
     
     // Create bulk operations
     const bulkOperations = createBulkOperations(transformedRecords);
     
     // Execute bulk write
-    const bulkResult = await TaskDetail.bulkWrite(bulkOperations);
-    
-    // Update result
-    result.processedRecords = transformedRecords.length;
-    result.insertedRecords = bulkResult.insertedCount || 0;
-    result.updatedRecords = bulkResult.modifiedCount || 0;
+    logger.info(`Executing bulkWrite operation with ${bulkOperations.length} operations`);
+    try {
+      const bulkResult = await TaskDetail.bulkWrite(bulkOperations);
+      
+      // Log detailed results
+      logger.info(`MongoDB bulkWrite result: ${JSON.stringify({
+        insertedCount: bulkResult.insertedCount || 0,
+        matchedCount: bulkResult.matchedCount || 0,
+        modifiedCount: bulkResult.modifiedCount || 0,
+        deletedCount: bulkResult.deletedCount || 0,
+        upsertedCount: bulkResult.upsertedCount || 0,
+        upsertedIds: bulkResult.upsertedIds ? Object.keys(bulkResult.upsertedIds).length : 0
+      })}`);
+      
+      // Update result
+      result.processedRecords = transformedRecords.length;
+      result.insertedRecords = bulkResult.insertedCount || 0;
+      result.updatedRecords = bulkResult.modifiedCount || 0;
+      
+      // Add upsert information
+      result.upsertedRecords = bulkResult.upsertedCount || 0;
+    } catch (bulkError) {
+      logger.error(`MongoDB bulkWrite error: ${bulkError.message}`);
+      if (bulkError.writeErrors) {
+        logger.error(`Write errors: ${JSON.stringify(bulkError.writeErrors)}`);
+      }
+      throw bulkError;
+    }
     
     // Update job status in MongoDB if jobId is provided
     if (jobId) {
       try {
-        await JobStatus.findOneAndUpdate(
-          { jobId },
-          { 
-            $inc: { 
-              processedRecords: result.processedRecords,
-              insertedRecords: result.insertedRecords,
-              updatedRecords: result.updatedRecords
-            }
-          }
-        );
-        console.log(`Updated job status in MongoDB for job ${jobId}`);
+        // Calculate percentage complete based on processed records
+        const jobStatus = await JobStatus.findOne({ jobId });
+        if (jobStatus) {
+          const totalRecords = jobStatus.totalRecords || 1000;
+          const processedSoFar = jobStatus.processedRecords || 0;
+          const newProcessed = processedSoFar + result.processedRecords;
+          const percentComplete = Math.round((newProcessed / totalRecords) * 100);
+          
+          // Update job status
+          const updateResult = await JobStatus.findOneAndUpdate(
+            { jobId },
+            { 
+              $inc: { 
+                processedRecords: result.processedRecords,
+                insertedRecords: result.insertedRecords,
+                updatedRecords: result.updatedRecords,
+                upsertedRecords: result.upsertedRecords || 0
+              },
+              $set: {
+                percentComplete: percentComplete,
+                message: `Processed ${newProcessed} of ${totalRecords} records (${percentComplete}%)`
+              }
+            },
+            { new: true } // Return updated document
+          );
+          
+          logger.info(`Updated job status in MongoDB for job ${jobId}: ${JSON.stringify({
+            processedRecords: updateResult.processedRecords,
+            insertedRecords: updateResult.insertedRecords,
+            updatedRecords: updateResult.updatedRecords,
+            percentComplete: updateResult.percentComplete
+          })}`);
+        } else {
+          logger.warn(`Job ${jobId} not found in database, could not update status`);
+        }
       } catch (updateError) {
-        console.error('Error updating job status in MongoDB:', updateError);
+        logger.error(`Error updating job status in MongoDB: ${updateError.message}`);
       }
     }
     
-    console.log(`Batch processed: ${result.processedRecords} records, ${result.insertedRecords} inserted, ${result.updatedRecords} updated`);
+    logger.info(`Batch completed: ${result.processedRecords} records processed, ${result.insertedRecords} inserted, ${result.updatedRecords} updated, ${result.upsertedRecords || 0} upserted`);
     return result;
   } catch (error) {
-    console.error('Error processing batch:', error);
+    logger.error(`Error processing batch: ${error.message}`);
+    if (error.stack) {
+      logger.error(`Stack trace: ${error.stack}`);
+    }
     result.errorRecords = limit;
     
     // Update job status in MongoDB if jobId is provided
     if (jobId) {
       try {
-        await JobStatus.findOneAndUpdate(
+        const errorUpdate = await JobStatus.findOneAndUpdate(
           { jobId },
           { 
             $inc: { errorRecords: limit },
             $set: {
-              message: `Error processing batch at offset ${offset}: ${error.message}`
+              message: `Error processing batch at offset ${offset}: ${error.message}`,
+              lastError: error.message,
+              lastErrorTimestamp: new Date()
             }
-          }
+          },
+          { new: true }
         );
-        console.log(`Updated job status in MongoDB for job ${jobId} with error`);
+        
+        if (errorUpdate) {
+          logger.info(`Updated job status in MongoDB for job ${jobId} with error information`);
+          logger.info(`Current job status: ${JSON.stringify({
+            status: errorUpdate.status,
+            processedRecords: errorUpdate.processedRecords,
+            errorRecords: errorUpdate.errorRecords,
+            percentComplete: errorUpdate.percentComplete
+          })}`);
+        } else {
+          logger.warn(`Job ${jobId} not found in database, could not update error status`);
+        }
       } catch (updateError) {
-        console.error('Error updating job status in MongoDB:', updateError);
+        logger.error(`Error updating job status in MongoDB: ${updateError.message}`);
       }
     }
     
