@@ -1,4 +1,9 @@
-// Simple function to copy TaskDetail data from DataLake to MongoDB Atlas
+// Background function to copy TaskDetail data from DataLake to MongoDB Atlas
+// This runs as a background function with a 15-minute timeout
+export const config = {
+  background: true
+};
+
 const mongoose = require('mongoose');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 const ionApi = require('./utils/ion-api');

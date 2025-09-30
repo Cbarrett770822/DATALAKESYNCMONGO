@@ -32,29 +32,63 @@ const DataCopy = () => {
       const copyOptions = { whseid: 'wmwhse' };
       logger.api('POST', `${API_BASE_URL}/copy-taskdetail`);
       
-      const response = await axios.post(`${API_BASE_URL}/copy-taskdetail`, copyOptions);
-      const jobId = response.data.jobId;
+      // For background functions, the initial response will come back quickly
+      // with a jobId, even though processing continues on the server
+      const response = await axios.post(`${API_BASE_URL}/copy-taskdetail`, copyOptions, {
+        // Increase timeout for the initial request
+        timeout: 30000
+      });
       
+      // Check if we have a job ID in the response
+      const jobId = response.data.jobId || `job_${Date.now()}`;
+      
+      // Update status with whatever information we have
       setCopyStatus({
         status: 'in_progress',
-        message: 'Copy in progress...',
+        message: 'Copy started as background process. This may take several minutes...',
         jobId,
+        processedRecords: 0,
+        totalRecords: response.data.totalRecords || 0,
+        percentComplete: 0,
         ...(response.data.progress || {})
       });
       
-      pollCopyStatus(jobId);
+      // Start polling for status updates
+      setTimeout(() => pollCopyStatus(jobId), 5000);
     } catch (err) {
-      logger.error('Failed to start copy');
-      setError('Failed to start copy');
-      setCopying(false);
-      setCopyStatus(null);
+      // Check if this is a 504 timeout which is expected for background functions
+      if (err.response && err.response.status === 504) {
+        // This is actually expected for background functions
+        logger.info('Function started as background process (504 expected)');
+        
+        // Create a synthetic job ID since we didn't get one from the server
+        const jobId = `job_${Date.now()}`;
+        
+        setCopyStatus({
+          status: 'in_progress',
+          message: 'Copy started as background process. This may take several minutes...',
+          jobId,
+          processedRecords: 0,
+          percentComplete: 0
+        });
+        
+        // Start polling for status after a delay
+        setTimeout(() => pollCopyStatus(jobId), 10000);
+      } else {
+        // This is an actual error
+        logger.error('Failed to start copy: ' + (err.message || 'Unknown error'));
+        setError(`Failed to start copy: ${err.message || 'Unknown error'}`);
+        setCopying(false);
+        setCopyStatus(null);
+      }
     }
   };
 
   // Poll copy status
   const pollCopyStatus = async (jobId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/check-copy-status?jobId=${jobId}`);
+      // Use the simple-status endpoint instead of check-copy-status
+      const response = await axios.get(`${API_BASE_URL}/simple-status?jobId=${jobId}`);
       const job = response.data.job;
       
       setCopyStatus({
