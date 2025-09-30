@@ -57,15 +57,22 @@ async function disconnectFromMongoDB() {
     console.log('Disconnected from MongoDB');
   } catch (error) {
     console.error('Error disconnecting from MongoDB:', error);
-  }
 }
 
 // Build SQL query for TaskDetail
-function buildTaskDetailQuery(offset = 0, limit = 1000, whseid = 'wmwhse1') {
-  // Calculate start and end row numbers based on offset and limit
-  const startRow = offset + 1;
-  const endRow = offset + limit;
+function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1') {
+  // When processing one record at a time, use a simpler query
+  if (limit === 1) {
+    return `
+      SELECT *
+      FROM "CSWMS_${whseid}_TASKDETAIL"
+      ORDER BY TASKDETAILKEY
+      OFFSET ${offset}
+      LIMIT 1
+    `;
+  }
   
+  // Original query for larger batches
   return `
     SELECT *
     FROM (
@@ -73,9 +80,9 @@ function buildTaskDetailQuery(offset = 0, limit = 1000, whseid = 'wmwhse1') {
         *,
         ROW_NUMBER() OVER (ORDER BY TASKDETAILKEY) AS row_num
       FROM 
-        "CSWMS_wmwhse_TASKDETAIL"
+        "CSWMS_${whseid}_TASKDETAIL"
     ) AS numbered_rows
-    WHERE row_num BETWEEN ${startRow} AND ${endRow}
+    WHERE row_num BETWEEN ${offset + 1} AND ${offset + limit}
   `;
 }
 
@@ -203,8 +210,8 @@ exports.handler = async function(event, context) {
       const countResults = await ionApi.getResults(countQueryId);
       console.log('Count results:', JSON.stringify(countResults, null, 2));
       
-      // Define batch size for processing
-      const batchSize = 1000;
+      // Define batch size for processing - using small batch size (1 record at a time)
+      const batchSize = 1;
       
       // Extract count from results based on different possible formats
       let totalRecords = 0;
@@ -400,7 +407,41 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
     // Create bulk operations
     const bulkOperations = createBulkOperations(transformedRecords);
     
-    // Execute bulk write
+    // For single records, use updateOne instead of bulkWrite for better logging
+    if (transformedRecords.length === 1) {
+      const record = transformedRecords[0];
+      logger.info(`Processing single record: TASKDETAILKEY=${record.TASKDETAILKEY}, WHSEID=${record.WHSEID}`);
+      
+      // Execute updateOne instead of bulkWrite for single records
+      logger.info(`Executing updateOne for TASKDETAILKEY=${record.TASKDETAILKEY}`);
+      try {
+        const updateResult = await TaskDetail.updateOne(
+          { TASKDETAILKEY: record.TASKDETAILKEY, WHSEID: record.WHSEID },
+          { $set: record },
+          { upsert: true }
+        );
+        
+        logger.info(`MongoDB updateOne result: ${JSON.stringify({
+          matchedCount: updateResult.matchedCount || 0,
+          modifiedCount: updateResult.modifiedCount || 0,
+          upsertedCount: updateResult.upsertedId ? 1 : 0
+        })}`);
+        
+        // Update result
+        result.processedRecords = 1;
+        result.insertedRecords = updateResult.upsertedId ? 1 : 0;
+        result.updatedRecords = updateResult.modifiedCount || 0;
+        result.upsertedRecords = updateResult.upsertedId ? 1 : 0;
+        
+        // Skip the bulkWrite operation
+        return result;
+      } catch (updateError) {
+        logger.error(`MongoDB updateOne error: ${updateError.message}`);
+        throw updateError;
+      }
+    }
+    
+    // For multiple records, use bulkWrite
     logger.info(`Executing bulkWrite operation with ${bulkOperations.length} operations`);
     try {
       const bulkResult = await TaskDetail.bulkWrite(bulkOperations);
