@@ -19,37 +19,12 @@ const mongoose = require('mongoose');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 const ionApi = require('./utils/ion-api');
 const JobStatus = require('./models/JobStatus');
+const TaskDetail = require('./models/taskdetail'); // Correct import with lowercase 't'
 
 // MongoDB connection string
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db_user:1ZbUxIUsqJxmRRlm@cbcluster01.jrsfdsz.mongodb.net/?retryWrites=true&w=majority&appName=CBCLUSTER01';
 
-// Define TaskDetail schema
-const taskDetailSchema = new mongoose.Schema({
-  taskId: { type: String, required: true, index: true },
-  whseid: { type: String, required: true },
-  tasktype: String,
-  status: String,
-  priority: Number,
-  pickdetailkey: String,
-  storerkey: String,
-  sku: String,
-  loc: String,
-  lot: String,
-  qty: Number,
-  uom: String,
-  fromLoc: String,
-  toLoc: String,
-  addDate: Date,
-  addWho: String,
-  editDate: Date,
-  editWho: String
-}, { 
-  timestamps: true,
-  strict: false // Allow additional fields
-});
-
-// Create model
-const TaskDetail = mongoose.models.TaskDetail || mongoose.model('TaskDetail', taskDetailSchema);
+// TaskDetail model is imported from './models/taskdetail'
 
 // Connect to MongoDB
 async function connectToMongoDB() {
@@ -116,12 +91,27 @@ function buildCountQuery(whseid = 'wmwhse1') {
 function transformData(records) {
   return records.map(record => {
     // Convert date strings to Date objects
-    if (record.addDate) {
-      record.addDate = new Date(record.addDate);
-    }
-    if (record.editDate) {
-      record.editDate = new Date(record.editDate);
-    }
+    const dateFields = [
+      'ADDDATE', 'EDITDATE', 'STARTTIME', 'ENDTIME', 'RELEASEDATE',
+      'ORIGINALSTARTTIME', 'ORIGINALENDTIME', 'REQUESTEDSHIPDATE',
+      'EXT_UDF_DATE1', 'EXT_UDF_DATE2', 'EXT_UDF_DATE3', 'EXT_UDF_DATE4', 'EXT_UDF_DATE5'
+    ];
+    
+    // Process all date fields
+    dateFields.forEach(field => {
+      if (record[field] && typeof record[field] === 'string') {
+        try {
+          record[field] = new Date(record[field]);
+        } catch (e) {
+          console.warn(`Failed to convert ${field} to date: ${record[field]}`);
+        }
+      }
+    });
+    
+    // Add sync metadata
+    record._syncDate = new Date();
+    record._syncStatus = 'synced';
+    
     return record;
   });
 }
@@ -130,8 +120,9 @@ function transformData(records) {
 function createBulkOperations(records) {
   return records.map(record => ({
     updateOne: {
-      filter: { taskId: record.taskId, whseid: record.whseid },
+      filter: { TASKDETAILKEY: record.TASKDETAILKEY, WHSEID: record.WHSEID },
       update: { $set: record },
+      upsert: true // Create if doesn't exist
     }
   }));
 }
