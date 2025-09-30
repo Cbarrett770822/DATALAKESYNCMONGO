@@ -69,9 +69,7 @@ exports.handler = async function(event, context) {
     await disconnectFromMongoDB();
     
     if (!jobStatus) {
-      // If job not found, return a default in_progress status
-      // This handles the case where the frontend generates a client-side job ID
-      // that doesn't exist in the database yet
+      // If job not found, return a default status
       logger.info(`Job ID ${jobId} not found in database, returning default status`);
       
       return successResponse({
