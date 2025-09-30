@@ -70,32 +70,55 @@ async function disconnectFromMongoDB() {
 
 // Build SQL query for TaskDetail
 function buildTaskDetailQuery(offset = 0, limit = 1000, whseid = 'wmwhse1') {
+  // Calculate start and end row numbers based on offset and limit
+  const startRow = offset + 1;
+  const endRow = offset + limit;
+  
   return `
     SELECT 
-      TASKDETAILKEY as taskId,
-      WHSEID as whseid,
-      TASKTYPE as tasktype,
-      STATUS as status,
-      PRIORITY as priority,
-      PICKDETAILKEY as pickdetailkey,
-      STORERKEY as storerkey,
-      SKU as sku,
-      LOC as loc,
-      LOT as lot,
-      QTY as qty,
-      UOM as uom,
-      FROMLOC as fromLoc,
-      TOLOC as toLoc,
-      ADDDATE as addDate,
-      ADDWHO as addWho,
-      EDITDATE as editDate,
-      EDITWHO as editWho
-    FROM 
-      "CSWMS_wmwhse_TASKDETAIL"
-    ORDER BY 
-      TASKDETAILKEY
-    OFFSET ${offset} ROWS
-    FETCH NEXT ${limit} ROWS ONLY
+      taskId,
+      whseid,
+      tasktype,
+      status,
+      priority,
+      pickdetailkey,
+      storerkey,
+      sku,
+      loc,
+      lot,
+      qty,
+      uom,
+      fromLoc,
+      toLoc,
+      addDate,
+      addWho,
+      editDate,
+      editWho
+    FROM (
+      SELECT 
+        TASKDETAILKEY as taskId,
+        WHSEID as whseid,
+        TASKTYPE as tasktype,
+        "STATUS" as status,
+        PRIORITY as priority,
+        PICKDETAILKEY as pickdetailkey,
+        STORERKEY as storerkey,
+        SKU as sku,
+        LOC as loc,
+        LOT as lot,
+        QTY as qty,
+        UOM as uom,
+        FROMLOC as fromLoc,
+        TOLOC as toLoc,
+        ADDDATE as addDate,
+        ADDWHO as addWho,
+        EDITDATE as editDate,
+        EDITWHO as editWho,
+        ROW_NUMBER() OVER (ORDER BY TASKDETAILKEY) AS row_num
+      FROM 
+        "CSWMS_wmwhse_TASKDETAIL"
+    ) AS numbered_rows
+    WHERE row_num BETWEEN ${startRow} AND ${endRow}
   `;
 }
 
@@ -184,7 +207,7 @@ exports.handler = async function(event, context) {
         return errorResponse('Invalid response from ION API', countResponse, 500);
       }
       
-      const countQueryId = countResponse.queryId || countResponse.id;
+      countQueryId = countResponse.queryId || countResponse.id;
       console.log('Count query ID:', countQueryId);
       
       // Wait for count query to complete
@@ -216,7 +239,7 @@ exports.handler = async function(event, context) {
     }
     
     // Declare variables in the outer scope
-    let totalRecords, jobId, jobStatus;
+    let totalRecords, jobId, jobStatus, countQueryId;
     
     // Get count results
     try {
