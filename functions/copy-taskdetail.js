@@ -157,7 +157,6 @@ exports.handler = async function(event, context) {
     console.log('MongoDB connection successful, proceeding...');
     
     // Step 1: Get total count
-    console.log('Getting total record count...');
     const countQuery = buildCountQuery(whseid);
     console.log('Count query SQL:', countQuery);
     
@@ -172,14 +171,13 @@ exports.handler = async function(event, context) {
         return errorResponse('Invalid response from ION API', countResponse, 500);
       }
       
-      countQueryId = countResponse.queryId || countResponse.id;
+      const countQueryId = countResponse.queryId || countResponse.id;
       console.log('Count query ID:', countQueryId);
       
       // Wait for count query to complete
       console.log('Checking count query status...');
       let countStatus = await ionApi.checkStatus(countQueryId);
       console.log('Initial count status:', JSON.stringify(countStatus, null, 2));
-      
       while (countStatus.status !== 'completed' && countStatus.status !== 'COMPLETED' && countStatus.status !== 'FINISHED') {
         console.log(`Query status: ${countStatus.status}, waiting 1 second...`);
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -193,24 +191,15 @@ exports.handler = async function(event, context) {
       }
       
       console.log('Count query completed successfully with status:', countStatus.status);
-    } catch (ionApiError) {
-      console.error('Error calling ION API:', ionApiError);
-      console.error('Error name:', ionApiError.name);
-      console.error('Error message:', ionApiError.message);
-      if (ionApiError.stack) console.error('Stack trace:', ionApiError.stack);
       
-      await disconnectFromMongoDB();
-      return errorResponse('Error calling ION API', ionApiError.message, 500);
-    }
-    
-    // Declare variables in the outer scope
-    let totalRecords, jobId, jobStatus, countQueryId;
-    
-    // Get count results
-    try {
+      // Get count results (within the same try block to maintain countQueryId scope)
       console.log('Getting count results...');
       const countResults = await ionApi.getResults(countQueryId);
       console.log('Count results:', JSON.stringify(countResults, null, 2));
+      
+      // Declare variables for job tracking
+      let totalRecords, jobId, jobStatus;
+      const batchSize = 1000; // Define batch size for processing
       
       // Extract count from results based on different possible formats
       totalRecords = 0;
@@ -252,13 +241,14 @@ exports.handler = async function(event, context) {
       };
       
       console.log('Job status initialized:', jobStatus);
-    } catch (resultsError) {
-      console.error('Error getting count results:', resultsError);
-      console.error('Error message:', resultsError.message);
-      if (resultsError.stack) console.error('Stack trace:', resultsError.stack);
+    } catch (error) {
+      console.error('Error in count query process:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      if (error.stack) console.error('Stack trace:', error.stack);
       
       await disconnectFromMongoDB();
-      return errorResponse('Error getting count results', resultsError.message, 500);
+      return errorResponse('Error in count query process', error.message, 500);
     }
     
     // Process the first batch immediately to ensure we have data
