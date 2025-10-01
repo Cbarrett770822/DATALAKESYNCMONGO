@@ -91,7 +91,7 @@ exports.handler = async function(event, context) {
           id: jobId,
           status: 'in_progress',
           processedRecords: 0,
-          totalRecords: 22197, // Updated with actual record count from logs
+          totalRecords: 0, // Will be updated when job status is available
           insertedRecords: 0,
           updatedRecords: 0,
           errorRecords: 0,
@@ -108,7 +108,7 @@ exports.handler = async function(event, context) {
         id: jobStatus.jobId,
         status: jobStatus.status || 'in_progress',
         processedRecords: jobStatus.processedRecords || 0,
-        totalRecords: jobStatus.totalRecords || 22197,
+        totalRecords: jobStatus.totalRecords || 0,
         insertedRecords: jobStatus.insertedRecords || 0,
         updatedRecords: jobStatus.updatedRecords || 0,
         errorRecords: jobStatus.errorRecords || 0,
@@ -132,7 +132,7 @@ exports.handler = async function(event, context) {
         id: jobId,
         status: 'in_progress',
         processedRecords: 0,
-        totalRecords: 22197,
+        totalRecords: 0,
         insertedRecords: 0,
         updatedRecords: 0,
         errorRecords: 0,

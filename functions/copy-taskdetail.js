@@ -91,7 +91,7 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1') {
 function buildCountQuery(whseid = 'wmwhse1') {
   return `
     SELECT COUNT(*) as count
-    FROM "CSWMS_wmwhse_TASKDETAIL"
+    FROM "CSWMS_${whseid}_TASKDETAIL"
   `;
 }
 
@@ -237,6 +237,14 @@ exports.handler = async function(event, context) {
       }
       
       console.log(`Total TaskDetail records: ${totalRecords}`);
+      console.log(`Count query details: Format detected=${
+        countResults.results ? 'results array' : 
+        countResults.rows ? 'rows array' : 
+        countResults.data ? 'data object' : 'unknown'
+      }`);
+      
+      // Log the raw count results for debugging
+      console.log('Raw count results:', JSON.stringify(countResults, null, 2));
       
       // Use client-provided job ID if available, otherwise create one
       jobId = requestBody.clientJobId || `job_${Date.now()}`;
@@ -340,10 +348,44 @@ exports.handler = async function(event, context) {
         let offset = updatedJobStatus.processedRecords || 0;
         
         // Continue processing in batches until all records are processed
+        let noRecordsCount = 0; // Track consecutive empty batches
+        const maxEmptyBatches = 3; // Stop after this many consecutive empty batches
+        
         while (offset < totalRecords) {
           try {
-            logger.info(`Processing batch at offset ${offset} (${Math.round((offset / totalRecords) * 100)}% complete)`);
+            logger.info(`Processing batch at offset ${offset} of ${totalRecords} total records (${Math.round((offset / totalRecords) * 100)}% complete)`);
             const batchResult = await processTaskDetailBatch(whseid, offset, batchSize, jobId);
+            
+            // Check if we got any records in this batch
+            if (batchResult.processedRecords === 0) {
+              noRecordsCount++;
+              logger.warn(`No records processed in batch at offset ${offset}. Empty batch count: ${noRecordsCount}/${maxEmptyBatches}`);
+              
+              // If we've had several consecutive empty batches, we might have reached the end of data
+              if (noRecordsCount >= maxEmptyBatches) {
+                logger.warn(`Received ${maxEmptyBatches} consecutive empty batches. Assuming end of data reached.`);
+                
+                // Update the total records count to match what we've actually processed
+                const currentJob = await JobStatus.findOne({ jobId });
+                if (currentJob) {
+                  const actualProcessed = currentJob.processedRecords || 0;
+                  logger.info(`Adjusting total record count from ${totalRecords} to ${actualProcessed} based on actual data received`);
+                  totalRecords = actualProcessed;
+                  
+                  // Update the job with the corrected total
+                  await JobStatus.findOneAndUpdate(
+                    { jobId },
+                    { $set: { totalRecords: actualProcessed, percentComplete: 100 } }
+                  );
+                }
+                
+                break; // Exit the processing loop
+              }
+            } else {
+              // Reset the counter if we got records
+              noRecordsCount = 0;
+            }
+            
             offset += batchSize;
             await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between batches
           } catch (error) {
@@ -453,6 +495,14 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
     const queryResults = await ionApi.getResults(queryId, 0, limit);
     const records = queryResults.results || [];
     logger.info(`Retrieved ${records.length} records from ION API (requested limit: ${limit})`);
+    
+    // Log more details about the results
+    if (records.length === 0) {
+      logger.warn(`No records returned for this batch! This might indicate we've reached the end of data`);
+      logger.info(`Raw query results structure: ${JSON.stringify(Object.keys(queryResults))}`);
+    } else if (records.length < limit) {
+      logger.info(`Received fewer records (${records.length}) than requested (${limit}). This might be the last batch.`);
+    }
     
     // Transform records
     const transformedRecords = transformData(records);

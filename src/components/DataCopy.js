@@ -100,6 +100,27 @@ const DataCopy = () => {
       const response = await axios.get(`${API_BASE_URL}/simple-status?jobId=${jobId}`);
       const job = response.data.job;
       
+      // Calculate percentage complete based on the data we have
+      let percentComplete = job.percentComplete || 0;
+      
+      // If we have processed records and total records, calculate percentage
+      // This is a fallback in case the server doesn't provide percentComplete
+      if (job.processedRecords > 0 && job.totalRecords > 0) {
+        const calculatedPercent = Math.round((job.processedRecords / job.totalRecords) * 100);
+        // Use the calculated percentage if it's valid and the server didn't provide one
+        if (calculatedPercent >= 0 && calculatedPercent <= 100 && !job.percentComplete) {
+          percentComplete = calculatedPercent;
+        }
+      }
+      
+      // If job is completed, always show 100%
+      if (job.status === 'completed') {
+        percentComplete = 100;
+      }
+      
+      // Log detailed status information
+      logger.info(`Job status update: ${job.status}, processed: ${job.processedRecords}, total: ${job.totalRecords}, percent: ${percentComplete}%`);
+      
       setCopyStatus({
         status: job.status,
         message: getStatusMessage(job.status),
@@ -108,7 +129,8 @@ const DataCopy = () => {
         insertedRecords: job.insertedRecords,
         updatedRecords: job.updatedRecords,
         errorRecords: job.errorRecords,
-        percentComplete: job.percentComplete
+        totalRecords: job.totalRecords,
+        percentComplete: percentComplete
       });
 
       if (job.status === 'in_progress' || job.status === 'pending' || job.status === 'not_found') {
@@ -173,6 +195,18 @@ const DataCopy = () => {
                     <Paper sx={{ p: 2, textAlign: 'center' }}>
                       <Typography variant="h6">{copyStatus.insertedRecords || 0}</Typography>
                       <Typography variant="body2">Inserted</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Paper sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography variant="h6">{copyStatus.totalRecords || 'Unknown'}</Typography>
+                      <Typography variant="body2">Total Records</Typography>
+                    </Paper>
+                  </Grid>
+                  <Grid item xs={6} md={3}>
+                    <Paper sx={{ p: 2, textAlign: 'center', bgcolor: copyStatus.status === 'completed' ? '#e8f5e9' : 'inherit' }}>
+                      <Typography variant="h6">{copyStatus.percentComplete || 0}%</Typography>
+                      <Typography variant="body2">Complete</Typography>
                     </Paper>
                   </Grid>
                 </Grid>

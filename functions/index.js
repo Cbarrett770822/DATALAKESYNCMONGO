@@ -22,10 +22,8 @@ exports.handler = async function(event, context) {
         { name: 'submit-query', description: 'Submit a query to the DataFabric API' },
         { name: 'check-status', description: 'Check the status of a query' },
         { name: 'get-results', description: 'Get the results of a query' },
-        { name: 'sync-taskdetail', description: 'Sync taskdetail data from DataFabric to MongoDB' },
-        { name: 'check-sync-status', description: 'Check the status of a sync job' },
-        { name: 'get-sync-history', description: 'Get sync job history' },
-        { name: 'get-taskdetail-stats', description: 'Get taskdetail statistics' }
+        { name: 'copy-taskdetail', description: 'Copy taskdetail data from DataFabric to MongoDB' },
+        { name: 'simple-status', description: 'Check the status of a background job' }
       ]
     })
   };
