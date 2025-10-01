@@ -1,0 +1,40 @@
+[build]
+  command = "chmod +x build.sh && ./build.sh"
+  publish = "build"
+  functions = "functions"
+
+# Function configuration
+[functions]
+  # Increase function timeout to 30 seconds
+  node_bundler = "esbuild"
+  included_files = ["ION_Credentials/**", "../ION_Credentials/**"]
+  external_node_modules = ["mongodb"]
+
+# Copy ION credentials during build
+[build.environment]
+  COPY_CREDENTIALS = "true"
+
+[dev]
+  command = "npm start"
+  port = 3000
+  targetPort = 3000
+  publish = "build"
+  autoLaunch = true
+  framework = "create-react-app"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+  force = true
+  
+# Add debug endpoint
+[[redirects]]
+  from = "/debug/*"
+  to = "/debug.html"
+  status = 200

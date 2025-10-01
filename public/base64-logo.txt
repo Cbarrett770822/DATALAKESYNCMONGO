@@ -1,0 +1,3 @@
+// Base64 encoded 1x1 transparent pixel PNG
+// You can use this as a placeholder for logo files
+data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=

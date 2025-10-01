@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Create Favicon</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        canvas { border: 1px solid #ddd; }
+        .output { margin-top: 20px; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>Favicon Creator</h1>
+    <canvas id="canvas" width="32" height="32"></canvas>
+    <div class="output">
+        <h3>Favicon Data URL:</h3>
+        <textarea id="output" rows="5" cols="80"></textarea>
+    </div>
+    
+    <script>
+        function generateFavicon() {
+            const canvas = document.getElementById('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#1976d2';
+            ctx.fillRect(0, 0, 32, 32);
+            
+            // Text
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('WMS', 16, 12);
+            ctx.fillText('SYNC', 16, 22);
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        // Generate favicon
+        const dataUrl = generateFavicon();
+        document.getElementById('output').value = dataUrl;
+    </script>
+</body>
+</html>

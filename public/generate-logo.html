@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate Logo</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        canvas { border: 1px solid #ddd; }
+        .output { margin-top: 20px; word-break: break-all; }
+    </style>
+</head>
+<body>
+    <h1>Logo Generator</h1>
+    <canvas id="canvas192" width="192" height="192"></canvas>
+    <div class="output">
+        <h3>192x192 Logo Data URL:</h3>
+        <textarea id="output192" rows="5" cols="80"></textarea>
+    </div>
+    
+    <canvas id="canvas512" width="512" height="512"></canvas>
+    <div class="output">
+        <h3>512x512 Logo Data URL:</h3>
+        <textarea id="output512" rows="5" cols="80"></textarea>
+    </div>
+
+    <script>
+        function generateLogo(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#1976d2';
+            ctx.fillRect(0, 0, size, size);
+            
+            // Text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size/4}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('WMS', size/2, size/2 - size/8);
+            ctx.fillText('SYNC', size/2, size/2 + size/8);
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        // Generate 192x192 logo
+        const canvas192 = document.getElementById('canvas192');
+        const dataUrl192 = generateLogo(canvas192, 192);
+        document.getElementById('output192').value = dataUrl192;
+        
+        // Generate 512x512 logo
+        const canvas512 = document.getElementById('canvas512');
+        const dataUrl512 = generateLogo(canvas512, 512);
+        document.getElementById('output512').value = dataUrl512;
+    </script>
+</body>
+</html>
