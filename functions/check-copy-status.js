@@ -7,7 +7,7 @@ const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db
 
 // Define JobStatus schema
 const jobStatusSchema = new mongoose.Schema({
-  id: { type: String, required: true, index: true },
+  jobId: { type: String, required: true, index: true },
   status: { type: String, required: true },
   totalRecords: { type: Number, default: 0 },
   processedRecords: { type: Number, default: 0 },
@@ -17,7 +17,7 @@ const jobStatusSchema = new mongoose.Schema({
   percentComplete: { type: Number, default: 0 },
   startTime: { type: Date, default: Date.now },
   endTime: { type: Date },
-  options: { type: Object },
+  options: { type: mongoose.Schema.Types.Mixed },
   error: { type: String }
 });
 
@@ -56,6 +56,14 @@ async function disconnectFromMongoDB() {
   }
 }
 
+// Create JobStatus model
+let JobStatus;
+try {
+  JobStatus = mongoose.model('JobStatus');
+} catch (e) {
+  JobStatus = mongoose.model('JobStatus', jobStatusSchema);
+}
+
 exports.handler = async function(event, context) {
   // Handle OPTIONS request (preflight)
   if (event.httpMethod === 'OPTIONS') {
@@ -72,8 +80,11 @@ exports.handler = async function(event, context) {
     
     console.log(`Checking status for job ${jobId}`);
     
-    // Get job status from in-memory storage
-    const jobStatus = jobStatuses[jobId];
+    // Connect to MongoDB
+    await connectToMongoDB();
+    
+    // Get job status from database
+    const jobStatus = await JobStatus.findOne({ jobId });
     
     if (!jobStatus) {
       // If job not found, return a mock completed status
@@ -94,18 +105,33 @@ exports.handler = async function(event, context) {
       });
     }
     
+    // Format the response to match the expected structure
     return successResponse({
-      job: jobStatus
+      job: {
+        id: jobStatus.jobId,
+        status: jobStatus.status,
+        processedRecords: jobStatus.processedRecords || 0,
+        totalRecords: jobStatus.totalRecords || 0,
+        insertedRecords: jobStatus.insertedRecords || 0,
+        updatedRecords: jobStatus.updatedRecords || 0,
+        errorRecords: jobStatus.errorRecords || 0,
+        percentComplete: jobStatus.percentComplete || 0,
+        startTime: jobStatus.startTime,
+        endTime: jobStatus.endTime,
+        message: jobStatus.message || '',
+        upsertedRecords: jobStatus.upsertedRecords || 0
+      }
     });
+  } catch (error) {
     console.error('Error in check-copy-status function:', error);
     return errorResponse('Failed to check copy status', error.message, 500);
+  } finally {
+    // Disconnect from MongoDB
+    try {
+      await disconnectFromMongoDB();
+    } catch (error) {
+      console.error('Error disconnecting from MongoDB:', error);
+    }
   }
 };
 
-// Create JobStatus model
-let JobStatus;
-try {
-  JobStatus = mongoose.model('JobStatus');
-} catch (e) {
-  JobStatus = mongoose.model('JobStatus', jobStatusSchema);
-}
