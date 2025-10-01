@@ -60,20 +60,40 @@ async function disconnectFromMongoDB() {
   }
 }
 
-// Build SQL query for TaskDetail
-function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1') {
-  // When processing one record at a time, use a simpler query
+// Build SQL query
+function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
+  // Build WHERE clause based on filters
+  let whereClause = '';
+  const conditions = [];
+  
+  // Add year filter if provided
+  if (filters.year) {
+    conditions.push(`EXTRACT(YEAR FROM ADDDATE) = ${filters.year}`);
+  }
+  
+  // Add task type filter if provided
+  if (filters.taskType) {
+    conditions.push(`TASKTYPE = '${filters.taskType}'`);
+  }
+  
+  // Combine conditions if any
+  if (conditions.length > 0) {
+    whereClause = `WHERE ${conditions.join(' AND ')}`;
+  }
+  
+  // For single record lookup
   if (limit === 1) {
     return `
       SELECT *
       FROM "CSWMS_${whseid}_TASKDETAIL"
+      ${whereClause}
       ORDER BY TASKDETAILKEY
       OFFSET ${offset}
       LIMIT 1
     `;
   }
   
-  // Original query for larger batches
+  // Query for larger batches with filters
   return `
     SELECT *
     FROM (
@@ -82,16 +102,37 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1') {
         ROW_NUMBER() OVER (ORDER BY TASKDETAILKEY) AS row_num
       FROM 
         "CSWMS_${whseid}_TASKDETAIL"
+      ${whereClause}
     ) AS numbered_rows
     WHERE row_num BETWEEN ${offset + 1} AND ${offset + limit}
   `;
 }
 
 // Build count query
-function buildCountQuery(whseid = 'wmwhse1') {
+function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
+  // Build WHERE clause based on filters
+  let whereClause = '';
+  const conditions = [];
+  
+  // Add year filter if provided
+  if (filters.year) {
+    conditions.push(`EXTRACT(YEAR FROM ADDDATE) = ${filters.year}`);
+  }
+  
+  // Add task type filter if provided
+  if (filters.taskType) {
+    conditions.push(`TASKTYPE = '${filters.taskType}'`);
+  }
+  
+  // Combine conditions if any
+  if (conditions.length > 0) {
+    whereClause = `WHERE ${conditions.join(' AND ')}`;
+  }
+  
   return `
     SELECT COUNT(*) as count
     FROM "CSWMS_${whseid}_TASKDETAIL"
+    ${whereClause}
   `;
 }
 
@@ -156,12 +197,21 @@ exports.handler = async function(event, context) {
   try {
     // Parse request body
     const requestBody = JSON.parse(event.body || '{}');
-    // Using fixed warehouse ID 'wmwhse' as per the correct table name
-    const whseid = 'wmwhse';
+    // Extract filter parameters
+    const filters = {
+      year: requestBody.year ? parseInt(requestBody.year, 10) : null,
+      taskType: requestBody.taskType || null,
+    };
+    
+    // Using warehouse ID from request or default to 'wmwhse'
+    const whseid = requestBody.whseid || 'wmwhse';
     // Use a batch size of 1000 records for efficient processing
     const batchSize = 1000;
     
-    console.log(`Starting TaskDetail copy for warehouse ${whseid} (using fixed table name CSWMS_wmwhse_TASKDETAIL)`);
+    // Log filter parameters
+    logger.info(`Filters applied: ${JSON.stringify(filters)}`);
+    
+    console.log(`Starting TaskDetail copy for warehouse ${whseid} (using dynamic table name CSWMS_${whseid}_TASKDETAIL)`);
     
     // Connect to MongoDB
     console.log('Calling connectToMongoDB function...');
@@ -176,7 +226,7 @@ exports.handler = async function(event, context) {
     console.log('MongoDB connection successful, proceeding...');
     
     // Step 1: Get total count
-    const countQuery = buildCountQuery(whseid);
+    const countQuery = buildCountQuery(whseid, filters);
     console.log('Count query SQL:', countQuery);
     
     try {
@@ -274,7 +324,13 @@ exports.handler = async function(event, context) {
         updatedRecords: 0,
         errorRecords: 0,
         startTime: new Date(),
-        options: { whseid },
+        options: { 
+          whseid,
+          filters: {
+            year: filters.year,
+            taskType: filters.taskType
+          }
+        },
         status: 'in_progress',
         message: 'Starting TaskDetail copy operation'
       });
@@ -294,7 +350,7 @@ exports.handler = async function(event, context) {
     // Process the first batch immediately to ensure we have data
     try {
       console.log('Processing first batch...');
-      const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize, jobId);
+      const firstBatchResult = await processTaskDetailBatch(whseid, 0, batchSize, jobId, filters);
       console.log('First batch result:', firstBatchResult);
       
       // Update job status with first batch results
@@ -349,12 +405,12 @@ exports.handler = async function(event, context) {
         
         // Continue processing in batches until all records are processed
         let noRecordsCount = 0; // Track consecutive empty batches
-        const maxEmptyBatches = 3; // Stop after this many consecutive empty batches
+        const maxEmptyBatches = 5; // Stop after this many consecutive empty batches (increased from 3)
         
         while (offset < totalRecords) {
           try {
             logger.info(`Processing batch at offset ${offset} of ${totalRecords} total records (${Math.round((offset / totalRecords) * 100)}% complete)`);
-            const batchResult = await processTaskDetailBatch(whseid, offset, batchSize, jobId);
+            const batchResult = await processTaskDetailBatch(whseid, offset, batchSize, jobId, filters);
             
             // Check if we got any records in this batch
             if (batchResult.processedRecords === 0) {
@@ -457,7 +513,7 @@ exports.handler = async function(event, context) {
 };
 
 // Process a single batch of TaskDetail records
-async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
+async function processTaskDetailBatch(whseid, offset, limit, jobId = null, filters = {}) {
   logger.info(`Processing batch: offset=${offset}, limit=${limit}, jobId=${jobId || 'none'}`);
   
   const result = {
@@ -470,11 +526,35 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
   try {
     logger.info('Starting batch processing...');
     // Build and submit query
-    const query = buildTaskDetailQuery(offset, limit, whseid);
+    const query = buildTaskDetailQuery(offset, limit, whseid, filters);
     logger.info(`Submitting query to ION API: ${query.replace(/\s+/g, ' ').trim()}`);
-    const queryResponse = await ionApi.submitQuery(query);
-    const queryId = queryResponse.queryId || queryResponse.id;
-    logger.info(`Query submitted successfully, queryId: ${queryId}`);
+    
+    // Add retry logic for query submission
+    let queryResponse;
+    let queryId;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    while (retryCount < maxRetries) {
+      try {
+        queryResponse = await ionApi.submitQuery(query);
+        queryId = queryResponse.queryId || queryResponse.id;
+        logger.info(`Query submitted successfully, queryId: ${queryId}`);
+        break; // Success, exit the retry loop
+      } catch (error) {
+        retryCount++;
+        logger.error(`Error submitting query (attempt ${retryCount}/${maxRetries}): ${error.message}`);
+        
+        if (retryCount >= maxRetries) {
+          throw new Error(`Failed to submit query after ${maxRetries} attempts: ${error.message}`);
+        }
+        
+        // Wait before retrying with exponential backoff
+        const delay = 1000 * Math.pow(2, retryCount - 1); // 1s, 2s, 4s
+        logger.info(`Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
     
     // Wait for query to complete
     let queryStatus = await ionApi.checkStatus(queryId);
@@ -492,16 +572,56 @@ async function processTaskDetailBatch(whseid, offset, limit, jobId = null) {
     // Get results
     logger.info(`Query completed, fetching results for queryId: ${queryId}`);
     // Pass the limit parameter to ensure we get the correct batch size
-    const queryResults = await ionApi.getResults(queryId, 0, limit);
-    const records = queryResults.results || [];
-    logger.info(`Retrieved ${records.length} records from ION API (requested limit: ${limit})`);
+    
+    // Add retry logic for getting results
+    let queryResults;
+    let records = [];
+    let resultRetryCount = 0;
+    const maxResultRetries = 3;
+    
+    while (resultRetryCount < maxResultRetries) {
+      try {
+        queryResults = await ionApi.getResults(queryId, 0, limit);
+        records = queryResults.results || [];
+        logger.info(`Retrieved ${records.length} records from ION API (requested limit: ${limit})`);
+        break; // Success, exit the retry loop
+      } catch (error) {
+        resultRetryCount++;
+        logger.error(`Error getting results (attempt ${resultRetryCount}/${maxResultRetries}): ${error.message}`);
+        
+        if (resultRetryCount >= maxResultRetries) {
+          throw new Error(`Failed to get results after ${maxResultRetries} attempts: ${error.message}`);
+        }
+        
+        // Wait before retrying with exponential backoff
+        const delay = 1000 * Math.pow(2, resultRetryCount - 1); // 1s, 2s, 4s
+        logger.info(`Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
     
     // Log more details about the results
     if (records.length === 0) {
-      logger.warn(`No records returned for this batch! This might indicate we've reached the end of data`);
+      logger.warn(`No records returned for this batch! This might indicate we've reached the end of data or an API limitation`);
       logger.info(`Raw query results structure: ${JSON.stringify(Object.keys(queryResults))}`);
+      
+      // Log more details about the query results
+      logger.info(`Query status: ${queryStatus.status}`);
+      logger.info(`Query ID: ${queryId}`);
+      logger.info(`Query response headers: ${JSON.stringify(queryResults.headers || {})}`);
+      
+      // If there's an error message in the response, log it
+      if (queryResults.error || queryResults.message) {
+        logger.error(`Query error: ${queryResults.error || queryResults.message}`);
+      }
+      
+      // Log the full query for debugging
+      logger.info(`Full query: ${query}`);
     } else if (records.length < limit) {
       logger.info(`Received fewer records (${records.length}) than requested (${limit}). This might be the last batch.`);
+      logger.info(`First record TASKDETAILKEY: ${records[0].TASKDETAILKEY}, Last record TASKDETAILKEY: ${records[records.length-1].TASKDETAILKEY}`);
+    } else {
+      logger.info(`Received full batch of ${records.length} records. First: ${records[0].TASKDETAILKEY}, Last: ${records[records.length-1].TASKDETAILKEY}`);
     }
     
     // Transform records

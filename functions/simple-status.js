@@ -94,6 +94,7 @@ exports.handler = async function(event, context) {
           totalRecords: 0, // Will be updated when job status is available
           insertedRecords: 0,
           updatedRecords: 0,
+          upsertedRecords: 0,
           errorRecords: 0,
           percentComplete: 0,
           message: 'Job started, waiting for first update...'
@@ -135,6 +136,7 @@ exports.handler = async function(event, context) {
         totalRecords: 0,
         insertedRecords: 0,
         updatedRecords: 0,
+        upsertedRecords: 0,
         errorRecords: 0,
         percentComplete: 0,
         message: 'Error retrieving status, but job may still be running',

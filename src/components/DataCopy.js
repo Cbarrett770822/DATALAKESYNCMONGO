@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import {
   Box, Typography, Button, LinearProgress, 
-  Alert, Grid, Paper, Card, CardContent
+  Alert, Grid, Paper, Card, CardContent,
+  TextField, MenuItem, FormControl, InputLabel, Select,
+  Divider, Stack
 } from '@mui/material';
 import CloudDownloadIcon from '@mui/icons-material/CloudDownload';
 
@@ -16,10 +18,38 @@ const logger = {
   api: (method, url) => console.log(`[DataCopy][API] ${method} ${url}`)
 };
 
+// Task types for dropdown
+const taskTypes = [
+  { value: 'PICK', label: 'Pick' },
+  { value: 'PACK', label: 'Pack' },
+  { value: 'PUT', label: 'Put' },
+  { value: 'REPLEN', label: 'Replenishment' },
+  { value: 'COUNT', label: 'Count' },
+  { value: 'MOVE', label: 'Move' }
+];
+
+// Generate years for dropdown (last 5 years)
+const currentYear = new Date().getFullYear();
+const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+
+// Warehouse IDs
+const warehouseIds = [
+  { value: 'wmwhse1', label: 'Warehouse 1' },
+  { value: 'wmwhse2', label: 'Warehouse 2' },
+  { value: 'wmwhse3', label: 'Warehouse 3' },
+  { value: 'wmwhse4', label: 'Warehouse 4' },
+  { value: 'wmwhse', label: 'Default Warehouse' }
+];
+
 const DataCopy = () => {
   const [copying, setCopying] = useState(false);
   const [copyStatus, setCopyStatus] = useState(null);
   const [error, setError] = useState(null);
+  
+  // Filter states
+  const [warehouseId, setWarehouseId] = useState('wmwhse');
+  const [year, setYear] = useState('');
+  const [taskType, setTaskType] = useState('');
 
   // Start copy process
   const startCopy = async () => {
@@ -36,9 +66,14 @@ const DataCopy = () => {
       setCopyStatus({ status: 'starting', message: 'Starting TaskDetail copy...' });
       
       const copyOptions = { 
-        whseid: 'wmwhse',
-        clientJobId: clientJobId // Pass the client job ID to the backend
+        whseid: warehouseId,
+        clientJobId: clientJobId, // Pass the client job ID to the backend
+        // Add filter parameters
+        year: year || null,
+        taskType: taskType || null
       };
+      
+      logger.info(`Using filters: Warehouse=${warehouseId}, Year=${year || 'All'}, TaskType=${taskType || 'All'}`);
       logger.api('POST', `${API_BASE_URL}/copy-taskdetail`);
       
       // For background functions, the initial response will come back quickly
@@ -193,8 +228,8 @@ const DataCopy = () => {
                   </Grid>
                   <Grid item xs={6} md={3}>
                     <Paper sx={{ p: 2, textAlign: 'center' }}>
-                      <Typography variant="h6">{copyStatus.insertedRecords || 0}</Typography>
-                      <Typography variant="body2">Inserted</Typography>
+                      <Typography variant="h6">{(copyStatus.insertedRecords || 0) + (copyStatus.upsertedRecords || 0)}</Typography>
+                      <Typography variant="body2">Inserted/Upserted</Typography>
                     </Paper>
                   </Grid>
                   <Grid item xs={6} md={3}>
@@ -216,6 +251,79 @@ const DataCopy = () => {
         </Card>
       )}
       
+      {/* Filter Options */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>Filter Options</Typography>
+          <Grid container spacing={2}>
+            {/* Warehouse ID Filter */}
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel id="warehouse-select-label">Warehouse</InputLabel>
+                <Select
+                  labelId="warehouse-select-label"
+                  id="warehouse-select"
+                  value={warehouseId}
+                  label="Warehouse"
+                  onChange={(e) => setWarehouseId(e.target.value)}
+                  disabled={copying}
+                >
+                  {warehouseIds.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            {/* Year Filter */}
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel id="year-select-label">Year</InputLabel>
+                <Select
+                  labelId="year-select-label"
+                  id="year-select"
+                  value={year}
+                  label="Year"
+                  onChange={(e) => setYear(e.target.value)}
+                  disabled={copying}
+                >
+                  <MenuItem value="">All Years</MenuItem>
+                  {years.map((year) => (
+                    <MenuItem key={year} value={year}>
+                      {year}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            {/* Task Type Filter */}
+            <Grid item xs={12} md={4}>
+              <FormControl fullWidth>
+                <InputLabel id="task-type-select-label">Task Type</InputLabel>
+                <Select
+                  labelId="task-type-select-label"
+                  id="task-type-select"
+                  value={taskType}
+                  label="Task Type"
+                  onChange={(e) => setTaskType(e.target.value)}
+                  disabled={copying}
+                >
+                  <MenuItem value="">All Task Types</MenuItem>
+                  {taskTypes.map((option) => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+      
       {/* Action Button */}
       <Button
         variant="contained"
@@ -223,6 +331,7 @@ const DataCopy = () => {
         startIcon={<CloudDownloadIcon />}
         onClick={startCopy}
         disabled={copying}
+        sx={{ mt: 2 }}
       >
         {copying ? 'Copying...' : 'Copy TaskDetail Data'}
       </Button>
