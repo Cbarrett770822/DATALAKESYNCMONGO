@@ -7,6 +7,49 @@ const config = {
 // Export the config for Netlify
 exports.config = config;
 
+// Track detected SQL dialect capabilities
+let detectedSqlDialect = null;
+
+/**
+ * Detect SQL dialect capabilities of the DataFabric API
+ * This helps determine which query syntax to use
+ * @returns {Promise<string>} 'advanced' if EXTRACT is supported, 'basic' otherwise
+ */
+async function detectSqlDialect() {
+  if (detectedSqlDialect) {
+    return detectedSqlDialect;
+  }
+  
+  console.log('Detecting SQL dialect capabilities...');
+  
+  try {
+    // Try a simple query with EXTRACT function
+    const extractQuery = `
+      SELECT 1 as test
+      WHERE EXTRACT(YEAR FROM CURRENT_DATE) > 2000
+    `;
+    
+    const response = await ionApi.submitQuery(extractQuery);
+    const queryId = response.queryId || response.id;
+    
+    // Check status
+    const status = await ionApi.checkStatus(queryId);
+    
+    if (status.status === 'completed' || status.status === 'COMPLETED' || status.status === 'FINISHED') {
+      console.log('SQL dialect supports EXTRACT function');
+      detectedSqlDialect = 'advanced';
+    } else {
+      console.log('SQL dialect does NOT support EXTRACT function');
+      detectedSqlDialect = 'basic';
+    }
+  } catch (error) {
+    console.warn('Error detecting SQL dialect, assuming basic dialect:', error.message);
+    detectedSqlDialect = 'basic';
+  }
+  
+  return detectedSqlDialect;
+}
+
 // Simple logger for consistent logging
 const logger = {
   info: (message) => console.log(message),
@@ -60,15 +103,28 @@ async function disconnectFromMongoDB() {
   }
 }
 
-// Build SQL query
 function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
   // Build WHERE clause based on filters
   let whereClause = '';
   const conditions = [];
   
+  // Always filter by warehouse ID
+  conditions.push(`WHSEID = '${whseid}'`);
+  
   // Add year filter if provided
   if (filters.year) {
-    conditions.push(`EXTRACT(YEAR FROM ADDDATE) = ${filters.year}`);
+    try {
+      // Use a date range comparison that's compatible with most SQL dialects
+      const yearStart = `${filters.year}-01-01`;
+      const yearEnd = `${filters.year}-12-31`;
+      
+      // Use simple string comparison which works in most SQL dialects
+      conditions.push(`(ADDDATE >= '${yearStart}' AND ADDDATE <= '${yearEnd}')`);
+      
+      logger.info(`Using date range filter: ADDDATE between ${yearStart} and ${yearEnd}`);
+    } catch (e) {
+      logger.error('Error creating date filter:', e.message);
+    }
   }
   
   // Add task type filter if provided
@@ -76,16 +132,14 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
     conditions.push(`TASKTYPE = '${filters.taskType}'`);
   }
   
-  // Combine conditions if any
-  if (conditions.length > 0) {
-    whereClause = `WHERE ${conditions.join(' AND ')}`;
-  }
+  // Combine conditions
+  whereClause = `WHERE ${conditions.join(' AND ')}`;
   
   // For single record lookup
   if (limit === 1) {
     return `
       SELECT *
-      FROM "CSWMS_${whseid}_TASKDETAIL"
+      FROM "CSWMS_wmwhse_TASKDETAIL"
       ${whereClause}
       ORDER BY TASKDETAILKEY
       OFFSET ${offset}
@@ -101,22 +155,35 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
         *,
         ROW_NUMBER() OVER (ORDER BY TASKDETAILKEY) AS row_num
       FROM 
-        "CSWMS_${whseid}_TASKDETAIL"
+        "CSWMS_wmwhse_TASKDETAIL"
       ${whereClause}
     ) AS numbered_rows
     WHERE row_num BETWEEN ${offset + 1} AND ${offset + limit}
   `;
 }
 
-// Build count query
 function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
   // Build WHERE clause based on filters
   let whereClause = '';
   const conditions = [];
   
+  // Always filter by warehouse ID
+  conditions.push(`WHSEID = '${whseid}'`);
+  
   // Add year filter if provided
   if (filters.year) {
-    conditions.push(`EXTRACT(YEAR FROM ADDDATE) = ${filters.year}`);
+    try {
+      // Use a date range comparison that's compatible with most SQL dialects
+      const yearStart = `${filters.year}-01-01`;
+      const yearEnd = `${filters.year}-12-31`;
+      
+      // Use simple string comparison which works in most SQL dialects
+      conditions.push(`(ADDDATE >= '${yearStart}' AND ADDDATE <= '${yearEnd}')`);
+      
+      logger.info(`Using date range filter: ADDDATE between ${yearStart} and ${yearEnd}`);
+    } catch (e) {
+      logger.error('Error creating date filter:', e.message);
+    }
   }
   
   // Add task type filter if provided
@@ -124,19 +191,15 @@ function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
     conditions.push(`TASKTYPE = '${filters.taskType}'`);
   }
   
-  // Combine conditions if any
-  if (conditions.length > 0) {
-    whereClause = `WHERE ${conditions.join(' AND ')}`;
-  }
+  // Combine conditions
+  whereClause = `WHERE ${conditions.join(' AND ')}`;
   
   return `
     SELECT COUNT(*) as count
-    FROM "CSWMS_${whseid}_TASKDETAIL"
+    FROM "CSWMS_wmwhse_TASKDETAIL"
     ${whereClause}
   `;
 }
-
-// Transform data for MongoDB
 function transformData(records) {
   return records.map(record => {
     // Convert date strings to Date objects
@@ -190,6 +253,14 @@ exports.handler = async function(event, context) {
     return errorResponse(`Method ${event.httpMethod} not allowed`, null, 405);
   }
   
+  // Detect SQL dialect capabilities early
+  try {
+    const sqlDialect = await detectSqlDialect();
+    logger.info(`Detected SQL dialect: ${sqlDialect}`);
+  } catch (dialectError) {
+    logger.warn(`Could not detect SQL dialect: ${dialectError.message}. Will use safe query syntax.`);
+  }
+  
   // Define variables at the top level of the function for proper scope
   let jobId;
   let totalRecords = 0;
@@ -211,7 +282,7 @@ exports.handler = async function(event, context) {
     // Log filter parameters
     logger.info(`Filters applied: ${JSON.stringify(filters)}`);
     
-    console.log(`Starting TaskDetail copy for warehouse ${whseid} (using dynamic table name CSWMS_${whseid}_TASKDETAIL)`);
+    console.log(`Starting TaskDetail copy for warehouse ${whseid} (using table CSWMS_wmwhse_TASKDETAIL with WHSEID filter)`);
     
     // Connect to MongoDB
     console.log('Calling connectToMongoDB function...');
@@ -254,8 +325,22 @@ exports.handler = async function(event, context) {
         
         if (countStatus.status === 'failed' || countStatus.status === 'FAILED') {
           console.error('Count query failed:', JSON.stringify(countStatus, null, 2));
+          
+          // Create a detailed error message based on the filters that were used
+          let errorMessage = 'Count query failed';
+          if (filters.year) {
+            errorMessage += `. The year filter (${filters.year}) may not be supported by this SQL dialect.`;
+          }
+          if (filters.taskType) {
+            errorMessage += ` Task type filter: ${filters.taskType}`;
+          }
+          
+          // Log the error with details about the filters
+          console.error(`Query failed with filters: ${JSON.stringify(filters)}`);
+          
+          // Disconnect from MongoDB and return error
           await disconnectFromMongoDB();
-          return errorResponse('Count query failed', countStatus, 500);
+          return errorResponse(errorMessage, countStatus, 500);
         }
       }
       

@@ -1,0 +1,182 @@
+[
+  {
+    "warehouse": "wmwhse1",
+    "filterName": "No filters",
+    "filters": {},
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse1",
+    "filterName": "Year filter only (2025)",
+    "filters": {
+      "year": 2025
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse1",
+    "filterName": "Task type filter only (PICK)",
+    "filters": {
+      "taskType": "PICK"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse1",
+    "filterName": "Task type filter only (COUNT)",
+    "filters": {
+      "taskType": "COUNT"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse1",
+    "filterName": "Combined filters (Year 2025 + PICK)",
+    "filters": {
+      "year": 2025,
+      "taskType": "PICK"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse1",
+    "filterName": "Combined filters (Year 2024 + COUNT)",
+    "filters": {
+      "year": 2024,
+      "taskType": "COUNT"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse10",
+    "filterName": "No filters",
+    "filters": {},
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse10",
+    "filterName": "Year filter only (2025)",
+    "filters": {
+      "year": 2025
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse10",
+    "filterName": "Task type filter only (PICK)",
+    "filters": {
+      "taskType": "PICK"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse10",
+    "filterName": "Task type filter only (COUNT)",
+    "filters": {
+      "taskType": "COUNT"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse10",
+    "filterName": "Combined filters (Year 2025 + PICK)",
+    "filters": {
+      "year": 2025,
+      "taskType": "PICK"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  },
+  {
+    "warehouse": "wmwhse10",
+    "filterName": "Combined filters (Year 2024 + COUNT)",
+    "filters": {
+      "year": 2024,
+      "taskType": "COUNT"
+    },
+    "countQuery": {
+      "success": false,
+      "error": "Query failed"
+    },
+    "dataQuery": {
+      "success": false,
+      "error": "Count query failed, skipping data query"
+    }
+  }
+]

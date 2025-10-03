@@ -53,6 +53,7 @@ This application provides a user-friendly interface to synchronize data from Inf
 - [TaskDetail Sync Process](docs/TaskDetail_Sync_Process.md): Detailed explanation of what happens when you click Play for TaskDetail
 - [TaskDetail Sync UI Flow](docs/TaskDetail_Sync_UI_Flow.md): User interface flow for TaskDetail synchronization
 - [TaskDetail Sync Implementation Guide](docs/TaskDetail_Sync_Implementation_Guide.md): Technical implementation details
+- [TABLE_NAME_FIX.md](TABLE_NAME_FIX.md): Documentation of the fix for the DataLake table name issue
 
 ## Getting Started
 
@@ -95,9 +96,9 @@ This application provides a user-friendly interface to synchronize data from Inf
 
 1. Use the deployment script:
    ```
-   deploy-to-netlify.bat
+   deploy.bat
    ```
-   This script will guide you through the deployment process.
+   This script will install dependencies, run tests, and deploy to Netlify.
 
 2. Alternatively, deploy manually:
    - Build the application: `npm run build`

@@ -65,6 +65,11 @@ const DataCopy = () => {
       setError(null);
       setCopyStatus({ status: 'starting', message: 'Starting TaskDetail copy...' });
       
+      // Add a warning if using year filter
+      if (year) {
+        logger.warn('Year filtering may not be supported by all SQL dialects. If the query fails, please try without year filtering.');
+      }
+      
       const copyOptions = { 
         whseid: warehouseId,
         clientJobId: clientJobId, // Pass the client job ID to the backend
@@ -121,7 +126,24 @@ const DataCopy = () => {
       } else {
         // This is an actual error
         logger.error('Failed to start copy: ' + (err.message || 'Unknown error'));
-        setError(`Failed to start copy: ${err.message || 'Unknown error'}`);
+        
+        // Check for specific error types and provide more helpful messages
+        let errorMessage = `Failed to start copy: ${err.message || 'Unknown error'}`;
+        
+        // Check for SQL syntax errors
+        if (err.message && err.message.toLowerCase().includes('syntax')) {
+          errorMessage = 'SQL syntax error in the query. This might be due to incompatible filtering options. Try without year filtering.';
+        }
+        // Check for authentication errors
+        else if (err.message && (err.message.toLowerCase().includes('auth') || err.message.toLowerCase().includes('token'))) {
+          errorMessage = 'Authentication error. Please check your ION API credentials.';
+        }
+        // Check for connection errors
+        else if (err.message && (err.message.toLowerCase().includes('network') || err.message.toLowerCase().includes('connect'))) {
+          errorMessage = 'Network error. Please check your internet connection and try again.';
+        }
+        
+        setError(errorMessage);
         setCopying(false);
         setCopyStatus(null);
       }

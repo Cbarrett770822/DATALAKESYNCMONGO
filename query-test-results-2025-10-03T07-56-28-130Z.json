@@ -1,0 +1,467 @@
+[
+  {
+    "name": "Basic count query (no filters)",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1'",
+    "result": {
+      "success": true,
+      "status": "FINISHED",
+      "data": [
+        {
+          "count": "420"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Task type filter only",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1' AND TASKTYPE = 'PICK'",
+    "result": {
+      "success": true,
+      "status": "FINISHED",
+      "data": [
+        {
+          "count": "0"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Year filter using EXTRACT",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1' AND EXTRACT(YEAR FROM ADDDATE) = 2025",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "4DdvNm3d2G3jhSnBBXvG",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Year filter using date range",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1' AND ADDDATE >= '2025-01-01' AND ADDDATE <= '2025-12-31'",
+    "result": {
+      "success": true,
+      "status": "FINISHED",
+      "data": [
+        {
+          "count": "77"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Combined filters (task type + year range)",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1' AND TASKTYPE = 'PICK' AND ADDDATE >= '2025-01-01' AND ADDDATE <= '2025-12-31'",
+    "result": {
+      "success": true,
+      "status": "FINISHED",
+      "data": [
+        {
+          "count": "0"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Year filter using YEAR function",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1' AND YEAR(ADDDATE) = 2025",
+    "result": {
+      "success": true,
+      "status": "FINISHED",
+      "data": [
+        {
+          "count": "77"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Year filter using string manipulation",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1' AND SUBSTRING(CAST(ADDDATE AS VARCHAR), 1, 4) = '2025'",
+    "result": {
+      "success": true,
+      "status": "FINISHED",
+      "data": [
+        {
+          "count": "77"
+        }
+      ]
+    }
+  },
+  {
+    "name": "Data sample query",
+    "query": "SELECT * FROM \"CSWMS_wmwhse_TASKDETAIL\" WHERE WHSEID = 'wmwhse1' LIMIT 5",
+    "result": {
+      "success": true,
+      "status": "FINISHED",
+      "data": [
+        {
+          "SERIALKEY": "454",
+          "WHSEID": "wmwhse1",
+          "TASKDETAILKEY": "0000002887",
+          "TASKTYPE": "PK",
+          "STORERKEY": "DS1",
+          "SKU": "500243",
+          "LOT": "0000000466",
+          "UOM": "2",
+          "UOMQTY": "2.000000000000000",
+          "QTY": "1.000000000000000",
+          "FROMLOC": "STAGE",
+          "LOGICALFROMLOC": "STAGE",
+          "FROMID": "LPN20250506001",
+          "TOLOC": "PACK",
+          "LOGICALTOLOC": "",
+          "TOID": "LPN2505001",
+          "CASEID": "0000001052",
+          "PICKMETHOD": "1",
+          "STATUS": "9",
+          "STATUSMSG": "",
+          "PRIORITY": "5",
+          "SOURCEPRIORITY": "5",
+          "HOLDKEY": "",
+          "USERKEY": "lawrence.qian@infor.com",
+          "USERPOSITION": "1",
+          "USERKEYOVERRIDE": "",
+          "STARTTIME": "2025-05-06T07:51:40.000Z",
+          "ENDTIME": "2025-05-06T07:55:20.000Z",
+          "SOURCETYPE": "PICKDETAIL",
+          "SOURCEKEY": "0000007108",
+          "PICKDETAILKEY": "0000007108",
+          "ORDERKEY": "0000000316",
+          "ORDERLINENUMBER": "00001",
+          "LISTKEY": "",
+          "WAVEKEY": "0000000136",
+          "REASONKEY": " ",
+          "MESSAGE01": "",
+          "MESSAGE02": "",
+          "MESSAGE03": "",
+          "FINALTOLOC": "",
+          "SEQNO": "99999",
+          "ADDDATE": "2025-05-06T07:51:28.040Z",
+          "ADDWHO": "lawrence.qian@infor.com",
+          "EDITDATE": "2025-05-06T07:55:20.000Z",
+          "EDITWHO": "lawrence.qian@infor.com",
+          "DOOR": " ",
+          "ROUTE": " ",
+          "PUTAWAYZONE": "DOCK",
+          "UASSGNNUMBER": "",
+          "EQUIPMENT": "",
+          "EQUIPMENTID": "",
+          "SUBTASK": "DIRPK",
+          "TAREWGT": "0.000000000000000",
+          "NETWGT": "60.400000000000000",
+          "GROSSWGT": "60.400000000000000",
+          "MAXNUMPERCLUSTERCARTON": "0",
+          "PAID": "0",
+          "BILLABLE": "0",
+          "PAYROLLCANCELED": "0",
+          "PICKCONTPLACEMENT": "5",
+          "RUNSEQUENCE": "0",
+          "SCHEMA_REFERENCE": "wmwhse1"
+        },
+        {
+          "SERIALKEY": "455",
+          "WHSEID": "wmwhse1",
+          "TASKDETAILKEY": "0000002987",
+          "TASKTYPE": "PK",
+          "STORERKEY": "DS1",
+          "SKU": "500243",
+          "LOT": "0000000466",
+          "UOM": "2",
+          "UOMQTY": "1.000000000000000",
+          "QTY": "1.000000000000000",
+          "FROMLOC": "STAGE",
+          "LOGICALFROMLOC": "STAGE",
+          "FROMID": "LPN20250506001",
+          "TOLOC": "PACK",
+          "LOGICALTOLOC": "",
+          "TOID": "",
+          "CASEID": "0000001057",
+          "PICKMETHOD": "1",
+          "STATUS": "0",
+          "STATUSMSG": "",
+          "PRIORITY": "5",
+          "SOURCEPRIORITY": "5",
+          "HOLDKEY": "",
+          "USERKEY": "",
+          "USERPOSITION": "1",
+          "USERKEYOVERRIDE": "",
+          "STARTTIME": "2025-05-06T07:58:20.740Z",
+          "ENDTIME": "2025-05-06T07:58:20.740Z",
+          "SOURCETYPE": "PICKDETAIL",
+          "SOURCEKEY": "0000007208",
+          "PICKDETAILKEY": "0000007208",
+          "ORDERKEY": "0000000316",
+          "ORDERLINENUMBER": "00001",
+          "LISTKEY": "",
+          "WAVEKEY": "0000000136",
+          "REASONKEY": "",
+          "MESSAGE01": "",
+          "MESSAGE02": "",
+          "MESSAGE03": "",
+          "FINALTOLOC": "",
+          "SEQNO": "99999",
+          "ADDDATE": "2025-05-06T07:58:20.740Z",
+          "ADDWHO": "lawrence.qian@infor.com",
+          "EDITDATE": "2025-05-06T07:58:20.740Z",
+          "EDITWHO": "lawrence.qian@infor.com",
+          "DOOR": " ",
+          "ROUTE": " ",
+          "PUTAWAYZONE": "DOCK",
+          "TAREWGT": "0.000000000000000",
+          "NETWGT": "30.500000000000000",
+          "GROSSWGT": "30.500000000000000",
+          "MAXNUMPERCLUSTERCARTON": "0",
+          "PAID": "0",
+          "BILLABLE": "0",
+          "PAYROLLCANCELED": "0",
+          "PICKCONTPLACEMENT": "5",
+          "RUNSEQUENCE": "0",
+          "SCHEMA_REFERENCE": "wmwhse1"
+        },
+        {
+          "SERIALKEY": "459",
+          "WHSEID": "wmwhse1",
+          "TASKDETAILKEY": "0000002889",
+          "TASKTYPE": "PK",
+          "STORERKEY": "AT",
+          "SKU": "PJ03",
+          "LOT": "0000000480",
+          "UOM": "6",
+          "UOMQTY": "2.000000000000000",
+          "QTY": "2.000000000000000",
+          "FROMLOC": "A01C",
+          "LOGICALFROMLOC": "A01C",
+          "FROMID": "000000368",
+          "TOLOC": "PICKTO",
+          "LOGICALTOLOC": "",
+          "TOID": "",
+          "CASEID": "0000001058",
+          "PICKMETHOD": "1",
+          "STATUS": "0",
+          "STATUSMSG": "",
+          "PRIORITY": "5",
+          "SOURCEPRIORITY": "5",
+          "HOLDKEY": "",
+          "USERKEY": "",
+          "USERPOSITION": "1",
+          "USERKEYOVERRIDE": "",
+          "STARTTIME": "2025-05-16T06:22:43.853Z",
+          "ENDTIME": "2025-05-16T06:22:43.853Z",
+          "SOURCETYPE": "PICKDETAIL",
+          "SOURCEKEY": "0000007212",
+          "PICKDETAILKEY": "0000007212",
+          "ORDERKEY": "0000000326",
+          "ORDERLINENUMBER": "00001",
+          "LISTKEY": "",
+          "WAVEKEY": "0000000137",
+          "REASONKEY": "",
+          "MESSAGE01": "",
+          "MESSAGE02": "",
+          "MESSAGE03": "",
+          "FINALTOLOC": "",
+          "SEQNO": "99999",
+          "ADDDATE": "2025-05-16T06:22:43.853Z",
+          "ADDWHO": "manoj.k@infor.com",
+          "EDITDATE": "2025-05-16T06:22:43.853Z",
+          "EDITWHO": "manoj.k@infor.com",
+          "DOOR": " ",
+          "ROUTE": " ",
+          "PUTAWAYZONE": "ZA",
+          "UASSGNNUMBER": "",
+          "EQUIPMENT": "",
+          "EQUIPMENTID": "",
+          "SUBTASK": "CLPK",
+          "CLUSTERKEY": "0000000016",
+          "TAREWGT": "0.000000000000000",
+          "NETWGT": "20.000000000000000",
+          "GROSSWGT": "20.000000000000000",
+          "MAXNUMPERCLUSTERCARTON": "0",
+          "PAID": "0",
+          "BILLABLE": "0",
+          "PAYROLLCANCELED": "0",
+          "PICKCONTPLACEMENT": "5",
+          "RUNSEQUENCE": "0",
+          "SCHEMA_REFERENCE": "wmwhse1"
+        },
+        {
+          "SERIALKEY": "426",
+          "WHSEID": "wmwhse1",
+          "TASKDETAILKEY": "0000002288",
+          "TASKTYPE": "PK",
+          "STORERKEY": "DS1",
+          "SKU": "100231",
+          "LOT": "0000000126",
+          "UOM": "2",
+          "UOMQTY": "1.000000000000000",
+          "QTY": "10.000000000000000",
+          "FROMLOC": "B107",
+          "LOGICALFROMLOC": "B107",
+          "FROMID": "XCFS0014",
+          "TOLOC": "PACK",
+          "LOGICALTOLOC": "",
+          "TOID": " ",
+          "CASEID": "0000001004",
+          "PICKMETHOD": "1",
+          "STATUS": "0",
+          "STATUSMSG": "Canceled/Rejected By User",
+          "PRIORITY": "5",
+          "SOURCEPRIORITY": "5",
+          "HOLDKEY": "",
+          "USERKEY": " ",
+          "USERPOSITION": "1",
+          "USERKEYOVERRIDE": "",
+          "STARTTIME": "2025-04-28T01:41:13.000Z",
+          "ENDTIME": "2025-04-28T01:43:37.000Z",
+          "SOURCETYPE": "PICKDETAIL",
+          "SOURCEKEY": "0000006313",
+          "PICKDETAILKEY": "0000006313",
+          "ORDERKEY": "0000000287",
+          "ORDERLINENUMBER": "00001",
+          "LISTKEY": "",
+          "WAVEKEY": "0000000116",
+          "REASONKEY": "SKIP",
+          "MESSAGE01": "",
+          "MESSAGE02": "",
+          "MESSAGE03": "",
+          "FINALTOLOC": "",
+          "SEQNO": "99999",
+          "ADDDATE": "2024-10-23T02:36:18.310Z",
+          "ADDWHO": "lawrence.qian@infor.com",
+          "EDITDATE": "2025-05-16T06:23:17.000Z",
+          "EDITWHO": "manoj.k@infor.com",
+          "DOOR": " ",
+          "ROUTE": " ",
+          "PUTAWAYZONE": "ZB",
+          "UASSGNNUMBER": "",
+          "EQUIPMENT": "",
+          "EQUIPMENTID": "",
+          "SUBTASK": "DIRPK",
+          "TAREWGT": "5.000000000000000",
+          "NETWGT": "5.000000000000000",
+          "GROSSWGT": "10.000000000000000",
+          "MAXNUMPERCLUSTERCARTON": "0",
+          "PAID": "0",
+          "BILLABLE": "0",
+          "PAYROLLCANCELED": "0",
+          "RUNSEQUENCE": "0",
+          "SCHEMA_REFERENCE": "wmwhse1"
+        },
+        {
+          "SERIALKEY": "450",
+          "WHSEID": "wmwhse1",
+          "TASKDETAILKEY": "0000002587",
+          "TASKTYPE": "PK",
+          "STORERKEY": "DS1",
+          "SKU": "100232",
+          "LOT": "0000000381",
+          "UOM": "6",
+          "UOMQTY": "2.000000000000000",
+          "QTY": "2.000000000000000",
+          "FROMLOC": "A11B",
+          "LOGICALFROMLOC": "A11B",
+          "FROMID": " ",
+          "TOLOC": "PACK",
+          "LOGICALTOLOC": "",
+          "TOID": "",
+          "CASEID": "0000001035",
+          "PICKMETHOD": "1",
+          "STATUS": "0",
+          "STATUSMSG": "Task was skipped becasue replenishment is needed",
+          "PRIORITY": "5",
+          "SOURCEPRIORITY": "5",
+          "HOLDKEY": "",
+          "USERKEY": " ",
+          "USERPOSITION": "1",
+          "USERKEYOVERRIDE": "",
+          "STARTTIME": "2025-02-27T01:58:56.537Z",
+          "ENDTIME": "2025-02-27T01:58:56.537Z",
+          "SOURCETYPE": "PICKDETAIL",
+          "SOURCEKEY": "0000006713",
+          "PICKDETAILKEY": "0000006713",
+          "ORDERKEY": "0000000306",
+          "ORDERLINENUMBER": "00002",
+          "LISTKEY": "",
+          "WAVEKEY": "0000000126",
+          "REASONKEY": "SKIP",
+          "MESSAGE01": "",
+          "MESSAGE02": "",
+          "MESSAGE03": "",
+          "FINALTOLOC": "",
+          "SEQNO": "99999",
+          "ADDDATE": "2025-02-27T01:58:56.537Z",
+          "ADDWHO": "manoj.k@infor.com",
+          "EDITDATE": "2025-05-16T06:23:17.000Z",
+          "EDITWHO": "manoj.k@infor.com",
+          "DOOR": " ",
+          "ROUTE": " ",
+          "PUTAWAYZONE": "ZA",
+          "TAREWGT": "2.000000000000000",
+          "NETWGT": "7.000000000000000",
+          "GROSSWGT": "9.000000000000000",
+          "MAXNUMPERCLUSTERCARTON": "0",
+          "PAID": "0",
+          "BILLABLE": "0",
+          "PAYROLLCANCELED": "0",
+          "PICKCONTPLACEMENT": "5",
+          "RUNSEQUENCE": "0",
+          "SCHEMA_REFERENCE": "wmwhse1"
+        }
+      ]
+    }
+  }
+]

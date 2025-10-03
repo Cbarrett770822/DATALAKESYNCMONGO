@@ -1,0 +1,522 @@
+[
+  {
+    "name": "Basic count query (no filters)",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse1_TASKDETAIL\"",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "g6CC1wlcGKt8c77rD8g4",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Task type filter only",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse1_TASKDETAIL\" WHERE TASKTYPE = 'PICK'",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "wNb9TjcnPtQ11MCVzrMD",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Year filter using EXTRACT",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse1_TASKDETAIL\" WHERE EXTRACT(YEAR FROM ADDDATE) = 2025",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "lNj2Xs9v85VNFWLF43jC",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Year filter using date range",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse1_TASKDETAIL\" WHERE ADDDATE >= '2025-01-01' AND ADDDATE <= '2025-12-31'",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "zwj27gQ8m4rgl457FlV8",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Combined filters (task type + year range)",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse1_TASKDETAIL\" WHERE TASKTYPE = 'PICK' AND ADDDATE >= '2025-01-01' AND ADDDATE <= '2025-12-31'",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "bmBTcM503NlJtbGJ6TXW",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Year filter using YEAR function",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse1_TASKDETAIL\" WHERE YEAR(ADDDATE) = 2025",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "hlT3x8CH3m4m1JrmRCqv",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Year filter using string manipulation",
+    "query": "SELECT COUNT(*) as count FROM \"CSWMS_wmwhse1_TASKDETAIL\" WHERE SUBSTRING(CAST(ADDDATE AS VARCHAR), 1, 4) = '2025'",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "DWQj6VH8Fc9dP1P9tvPJ",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  },
+  {
+    "name": "Data sample query",
+    "query": "SELECT * FROM \"CSWMS_wmwhse1_TASKDETAIL\" LIMIT 5",
+    "result": {
+      "success": false,
+      "error": "Query failed",
+      "status": "FAILED",
+      "details": {
+        "status": "FAILED",
+        "location": "result",
+        "queryId": "mbXS7jSzG0mCpcmNJKGd",
+        "columns": [
+          {
+            "name": "messageCode",
+            "datatype": "Integer"
+          },
+          {
+            "name": "messageCategory",
+            "datatype": "String"
+          },
+          {
+            "name": "messageType",
+            "datatype": "String"
+          },
+          {
+            "name": "message",
+            "datatype": "String"
+          },
+          {
+            "name": "localizedMessage",
+            "datatype": "String"
+          },
+          {
+            "name": "suggestedLocalizedText",
+            "datatype": "String"
+          },
+          {
+            "name": "messageTime",
+            "datatype": "Timestamp"
+          },
+          {
+            "name": "queryId",
+            "datatype": "String"
+          },
+          {
+            "name": "dataObjectId",
+            "datatype": "String"
+          },
+          {
+            "name": "userTableName",
+            "datatype": "String"
+          },
+          {
+            "name": "line",
+            "datatype": "Integer"
+          },
+          {
+            "name": "position",
+            "datatype": "Integer"
+          }
+        ],
+        "queryDetails": {}
+      }
+    }
+  }
+]

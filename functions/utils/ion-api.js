@@ -351,7 +351,8 @@ async function submitQuery(sqlQuery) {
     console.log('Request URL:', submitUrl.toString());
     console.log('Request headers:', JSON.stringify(options.headers, null, 2).replace(options.headers.Authorization, 'Bearer [REDACTED]'));
     
-    // Log the first 100 characters of the query for debugging
+    // Log the complete SQL query for debugging
+    console.log('FINAL SQL QUERY BEING SENT:', sqlQuery.trim().replace(/\s+/g, ' '));
     console.log('Query preview:', sqlQuery.substring(0, 100) + (sqlQuery.length > 100 ? '...' : ''));
     
     // Make the request
