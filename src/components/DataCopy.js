@@ -15,6 +15,7 @@ const API_BASE_URL = '/.netlify/functions';
 const logger = {
   info: (message) => console.log(`[DataCopy][INFO] ${message}`),
   error: (message) => console.error(`[DataCopy][ERROR] ${message}`),
+  warn: (message) => console.warn(`[DataCopy][WARNING] ${message}`),
   api: (method, url) => console.log(`[DataCopy][API] ${method} ${url}`)
 };
 
