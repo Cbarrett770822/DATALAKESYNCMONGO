@@ -499,10 +499,11 @@ exports.handler = async function(event, context) {
         // Continue processing in batches until all records are processed
         let noRecordsCount = 0; // Track consecutive empty batches
         const maxEmptyBatches = 5; // Stop after this many consecutive empty batches (increased from 3)
+        let processedCount = updatedJobStatus.processedRecords || 0; // Initialize with current processed count
         
-        while (offset < totalRecords) {
+        while (processedCount < totalRecords) {
           try {
-            logger.info(`Processing batch at offset ${offset} of ${totalRecords} total records (${Math.round((offset / totalRecords) * 100)}% complete)`);
+            logger.info(`Processing batch at offset ${offset} of ${totalRecords} total records (${Math.round((processedCount / totalRecords) * 100)}% complete)`);
             const batchResult = await processTaskDetailBatch(whseid, offset, batchSize, jobId, filters);
             
             // Check if we got any records in this batch
@@ -530,17 +531,24 @@ exports.handler = async function(event, context) {
                 
                 break; // Exit the processing loop
               }
+              
+              // If no records were processed, still increment the offset to avoid an infinite loop
+              offset += batchSize;
             } else {
               // Reset the counter if we got records
               noRecordsCount = 0;
+              
+              // Only increment the offset by the number of records actually processed
+              // This ensures we don't skip records or process them multiple times
+              offset += batchResult.processedRecords;
+              processedCount += batchResult.processedRecords;
             }
             
-            offset += batchSize;
             await new Promise(resolve => setTimeout(resolve, 500)); // Small delay between batches
           } catch (error) {
             logger.error(`Error processing batch at offset ${offset}: ${error.message}`);
-            // Continue with next batch despite errors
-            offset += batchSize;
+            // Increment offset by a smaller amount when there's an error to try to recover
+            offset += Math.ceil(batchSize / 10); // Move forward a bit, but not a full batch
           }
         }
         
