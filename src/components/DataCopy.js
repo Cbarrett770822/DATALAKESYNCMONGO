@@ -40,7 +40,7 @@ const warehouseIds = [
   { value: 'wmwhse2', label: 'Warehouse 2' },
   { value: 'wmwhse3', label: 'Warehouse 3' },
   { value: 'wmwhse4', label: 'Warehouse 4' },
-  { value: 'wmwhse', label: 'Default Warehouse' }
+  { value: 'all', label: 'All Warehouse' }
 ];
 
 const DataCopy = () => {
@@ -49,7 +49,7 @@ const DataCopy = () => {
   const [error, setError] = useState(null);
   
   // Filter states
-  const [warehouseId, setWarehouseId] = useState('wmwhse');
+  const [warehouseId, setWarehouseId] = useState('all');
   const [year, setYear] = useState('');
   const [taskType, setTaskType] = useState('');
 

@@ -108,8 +108,10 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
   let whereClause = '';
   const conditions = [];
   
-  // Always filter by warehouse ID
-  conditions.push(`WHSEID = '${whseid}'`);
+  // Filter by warehouse ID unless 'all' is specified
+  if (whseid !== 'all') {
+    conditions.push(`WHSEID = '${whseid}'`);
+  }
   
   // Add year filter if provided
   if (filters.year) {
@@ -137,7 +139,7 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
   }
   
   // Combine conditions
-  whereClause = `WHERE ${conditions.join(' AND ')}`;
+  whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   // For single record lookup
   if (limit === 1) {
@@ -171,8 +173,10 @@ function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
   let whereClause = '';
   const conditions = [];
   
-  // Always filter by warehouse ID
-  conditions.push(`WHSEID = '${whseid}'`);
+  // Filter by warehouse ID unless 'all' is specified
+  if (whseid !== 'all') {
+    conditions.push(`WHSEID = '${whseid}'`);
+  }
   
   // Add year filter if provided
   if (filters.year) {
@@ -200,7 +204,7 @@ function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
   }
   
   // Combine conditions
-  whereClause = `WHERE ${conditions.join(' AND ')}`;
+  whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   
   return `
     SELECT COUNT(*) as count
@@ -282,8 +286,8 @@ exports.handler = async function(event, context) {
       taskType: requestBody.taskType || null,
     };
     
-    // Using warehouse ID from request or default to 'wmwhse'
-    const whseid = requestBody.whseid || 'wmwhse';
+    // Using warehouse ID from request or default to 'all'
+    const whseid = requestBody.whseid || 'all';
     // Use a batch size of 1000 records for efficient processing
     const batchSize = 1000;
     
