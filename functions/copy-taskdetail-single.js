@@ -205,9 +205,9 @@ function transformData(records) {
 }
 
 // Process records one by one
-async function processRecords(jobId, whseid, filters, totalRecords, processingDelay) {
+async function processRecords(jobId, whseid, filters, totalRecords, processingDelay, startOffset = 0) {
   try {
-    logger.info(`Starting background processing for job ${jobId}`);
+    logger.info(`Starting background processing for job ${jobId} with startOffset=${startOffset}, totalRecords=${totalRecords}, processingDelay=${processingDelay}ms`);
     
     // Connect to MongoDB if not already connected
     if (mongoose.connection.readyState !== 1) {
@@ -215,8 +215,8 @@ async function processRecords(jobId, whseid, filters, totalRecords, processingDe
     }
     
     // Process records one by one
-    let offset = 0;
-    let processedCount = 0;
+    let offset = startOffset;
+    let processedCount = startOffset; // If we're starting from offset > 0, we've already processed some records
     let insertedCount = 0;
     
     while (processedCount < totalRecords) {
@@ -497,25 +497,119 @@ exports.handler = async (event, context) => {
     await jobStatus.save();
     console.log(`Job status created with ID: ${jobId}`);
     
-    // Start background processing
-    // Note: In a serverless environment, we need to return quickly
-    // and let the background processing continue asynchronously
-    setTimeout(() => {
-      processRecords(jobId, whseid, filters, actualTotalRecords, processingDelay)
-        .catch(error => {
-          console.error(`Background processing error: ${error.message}`);
-          // Update job status with error
-          JobStatus.findOneAndUpdate(
-            { jobId },
-            { 
-              $set: { status: 'failed' },
-              $push: { errors: error.message }
+    // Process the first record synchronously to ensure it starts properly
+    // Then continue with background processing for the rest
+    if (actualTotalRecords > 0) {
+      try {
+        // Build query for the first record
+        const query = buildTaskDetailQuery(0, 1, whseid, filters);
+        logger.info(`Processing first record synchronously: ${query}`);
+        
+        // Execute query
+        const response = await ionApi.submitQuery(query);
+        
+        // Wait for query to complete
+        let status;
+        do {
+          status = await ionApi.checkStatus(response.queryId);
+          
+          if (status.status === 'failed' || status.status === 'FAILED') {
+            throw new Error(`Query failed: ${JSON.stringify(status)}`);
+          }
+          
+          if (status.status !== 'completed' && status.status !== 'COMPLETED' && status.status !== 'FINISHED') {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        } while (status.status !== 'completed' && status.status !== 'COMPLETED' && status.status !== 'FINISHED');
+        
+        // Get results
+        const results = await ionApi.getResults(response.queryId);
+        
+        // Extract record
+        let record = null;
+        if (results.results && results.results.length > 0) {
+          record = results.results[0];
+        } else if (results.rows && results.rows.length > 0) {
+          // Convert row to object using column names
+          const columns = results.columns || [];
+          record = {};
+          results.rows[0].forEach((value, index) => {
+            if (columns[index]) {
+              record[columns[index].name] = value;
             }
-          ).catch(err => {
-            console.error(`Error updating job status: ${err.message}`);
           });
-        });
-    }, 100);
+        }
+        
+        if (record) {
+          // Transform record
+          const transformedRecord = transformData([record])[0];
+          
+          // Save to MongoDB
+          try {
+            // Check if record already exists
+            const existingRecord = await TaskDetail.findOne({
+              TASKDETAILKEY: transformedRecord.TASKDETAILKEY,
+              WHSEID: transformedRecord.WHSEID
+            });
+            
+            if (existingRecord) {
+              // Update existing record
+              await TaskDetail.updateOne(
+                { _id: existingRecord._id },
+                { $set: transformedRecord }
+              );
+              logger.info(`Updated first record: ${transformedRecord.TASKDETAILKEY}`);
+            } else {
+              // Insert new record
+              const newRecord = new TaskDetail(transformedRecord);
+              await newRecord.save();
+              logger.info(`Inserted first record: ${transformedRecord.TASKDETAILKEY}`);
+            }
+            
+            // Update job status with current record
+            await JobStatus.findOneAndUpdate(
+              { jobId },
+              { 
+                $set: { 
+                  processedRecords: 1,
+                  insertedRecords: 1,
+                  currentRecord: transformedRecord,
+                  lastUpdated: new Date()
+                }
+              }
+            );
+          } catch (saveError) {
+            logger.error(`Error saving first record: ${saveError.message}`);
+            throw saveError;
+          }
+        } else {
+          logger.warn('No record found in the first position');
+        }
+      } catch (error) {
+        logger.error(`Error processing first record: ${error.message}`);
+        // Don't throw here, we'll still return the job ID and let the client check status
+      }
+    }
+    
+    // Continue with background processing for remaining records
+    if (actualTotalRecords > 1) {
+      setTimeout(() => {
+        processRecords(jobId, whseid, filters, actualTotalRecords, processingDelay, 1) // Start from offset 1
+          .catch(error => {
+            console.error(`Background processing error: ${error.message}`);
+            // Update job status with error
+            JobStatus.findOneAndUpdate(
+              { jobId },
+              { 
+                $set: { status: 'failed' },
+                $push: { errors: error.message }
+              }
+            ).catch(err => {
+              console.error(`Error updating job status: ${err.message}`);
+            });
+          });
+      }, 100);
+    }
     
     // Build the queries for display purposes
     const displayCountQuery = buildCountQuery(whseid, filters);
