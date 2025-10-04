@@ -8,14 +8,18 @@ const jobStatusSchema = new mongoose.Schema({
     unique: true,
     index: true
   },
+  type: {
+    type: String,
+    enum: ['copy-taskdetail', 'copy-taskdetail-single', 'other'],
+    default: 'other'
+  },
   status: { 
     type: String, 
-    enum: ['pending', 'in_progress', 'completed', 'failed'],
+    enum: ['pending', 'running', 'paused', 'completed', 'failed', 'stopped'],
     default: 'pending'
   },
   operation: {
-    type: String,
-    required: true
+    type: String
   },
   totalRecords: {
     type: Number,
@@ -48,13 +52,28 @@ const jobStatusSchema = new mongoose.Schema({
   endTime: {
     type: Date
   },
+  lastUpdated: {
+    type: Date,
+    default: Date.now
+  },
+  paused: {
+    type: Boolean,
+    default: false
+  },
+  errors: {
+    type: [String],
+    default: []
+  },
   message: {
     type: String
   },
-  error: {
-    type: String
+  currentRecord: {
+    type: mongoose.Schema.Types.Mixed
   },
-  options: {
+  filters: {
+    type: mongoose.Schema.Types.Mixed
+  },
+  settings: {
     type: mongoose.Schema.Types.Mixed
   }
 }, { timestamps: true });
