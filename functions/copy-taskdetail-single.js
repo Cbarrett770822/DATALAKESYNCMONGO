@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const ionApi = require('./utils/ion-api');
-const TaskDetail = require('./models/TaskDetail');
+const TaskDetail = require('./models/taskdetail');
 const JobStatus = require('./models/JobStatus');
 
 // Configure logger
