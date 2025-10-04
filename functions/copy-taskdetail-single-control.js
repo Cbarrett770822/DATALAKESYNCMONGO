@@ -1,6 +1,6 @@
 // Netlify function for controlling a single record copy job (pause, resume, stop)
 const mongoose = require('mongoose');
-const JobStatus = require('./models/jobstatus');
+const JobStatus = require('./models/JobStatus');
 
 // Configure logger
 const logger = {

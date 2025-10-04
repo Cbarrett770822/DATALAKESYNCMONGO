@@ -1,6 +1,6 @@
 // Netlify function for checking the status of a single record copy job
 const mongoose = require('mongoose');
-const JobStatus = require('./models/jobstatus');
+const JobStatus = require('./models/JobStatus');
 
 // Configure logger
 const logger = {
