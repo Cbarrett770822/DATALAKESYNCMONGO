@@ -21,12 +21,13 @@ const logger = {
 
 // Task types for dropdown
 const taskTypes = [
-  { value: 'PICK', label: 'Pick' },
-  { value: 'PACK', label: 'Pack' },
-  { value: 'PUT', label: 'Put' },
-  { value: 'REPLEN', label: 'Replenishment' },
-  { value: 'COUNT', label: 'Count' },
-  { value: 'MOVE', label: 'Move' }
+  { value: 'PK', label: 'Pick (PK)' },
+  { value: 'PP', label: 'Pack (PP)' },
+  { value: 'PA', label: 'Put Away (PA)' },
+  { value: 'CC', label: 'Cycle Count (CC)' },
+  { value: 'LD', label: 'Load (LD)' },
+  { value: 'TD', label: 'Task Detail (TD)' },
+  { value: 'RC', label: 'Receive (RC)' }
 ];
 
 // Generate years for dropdown (last 5 years)
@@ -52,6 +53,12 @@ const DataCopy = () => {
   const [year, setYear] = useState('');
   const [taskType, setTaskType] = useState('');
 
+  // State for SQL queries
+  const [sqlQueries, setSqlQueries] = useState({
+    countQuery: '',
+    dataQuery: ''
+  });
+
   // Start copy process
   const startCopy = async () => {
     logger.info('Starting TaskDetail copy process');
@@ -64,6 +71,7 @@ const DataCopy = () => {
     try {
       setCopying(true);
       setError(null);
+      setSqlQueries({ countQuery: '', dataQuery: '' });
       setCopyStatus({ status: 'starting', message: 'Starting TaskDetail copy...' });
       
       // Add a warning if using year filter
@@ -92,6 +100,15 @@ const DataCopy = () => {
       // Check if we have a job ID in the response
       const jobId = response.data.jobId || `job_${Date.now()}`;
       
+      // Capture SQL queries if available
+      if (response.data.queries) {
+        logger.info('Received SQL queries from backend', response.data.queries);
+        setSqlQueries({
+          countQuery: response.data.queries.countQuery || '',
+          dataQuery: response.data.queries.dataQuery || ''
+        });
+      }
+      
       // Update status with whatever information we have
       setCopyStatus({
         status: 'in_progress',
@@ -113,6 +130,15 @@ const DataCopy = () => {
         
         // Use the client-generated job ID we already sent to the server
         logger.info(`Using client-generated job ID: ${clientJobId}`);
+        
+        // Check if we have SQL queries in the error response
+        if (err.response.data && err.response.data.queries) {
+          logger.info('Found SQL queries in error response', err.response.data.queries);
+          setSqlQueries({
+            countQuery: err.response.data.queries.countQuery || '',
+            dataQuery: err.response.data.queries.dataQuery || ''
+          });
+        }
         
         setCopyStatus({
           status: 'in_progress',
@@ -346,6 +372,51 @@ const DataCopy = () => {
           </Grid>
         </CardContent>
       </Card>
+      
+      {/* SQL Queries Display */}
+      {(sqlQueries.countQuery || sqlQueries.dataQuery) && (
+        <Card sx={{ mb: 3, bgcolor: '#f5f5f5' }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>SQL Queries</Typography>
+            
+            {sqlQueries.countQuery && (
+              <Box sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" gutterBottom>Count Query:</Typography>
+                <Paper 
+                  sx={{ 
+                    p: 2, 
+                    bgcolor: '#263238', 
+                    color: '#fff', 
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    overflowX: 'auto'
+                  }}
+                >
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{sqlQueries.countQuery}</pre>
+                </Paper>
+              </Box>
+            )}
+            
+            {sqlQueries.dataQuery && (
+              <Box>
+                <Typography variant="subtitle1" gutterBottom>Data Query:</Typography>
+                <Paper 
+                  sx={{ 
+                    p: 2, 
+                    bgcolor: '#263238', 
+                    color: '#fff', 
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    overflowX: 'auto'
+                  }}
+                >
+                  <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{sqlQueries.dataQuery}</pre>
+                </Paper>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
       
       {/* Action Button */}
       <Button

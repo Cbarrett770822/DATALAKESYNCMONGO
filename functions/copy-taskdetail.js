@@ -130,6 +130,9 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
   // Add task type filter if provided
   if (filters.taskType) {
     conditions.push(`TASKTYPE = '${filters.taskType}'`);
+  } else {
+    // If no task type is specified, use the standard task types
+    conditions.push(`TASKTYPE IN ('PK', 'PP', 'PA', 'CC', 'LD', 'TD', 'RC')`);
   }
   
   // Combine conditions
@@ -189,6 +192,9 @@ function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
   // Add task type filter if provided
   if (filters.taskType) {
     conditions.push(`TASKTYPE = '${filters.taskType}'`);
+  } else {
+    // If no task type is specified, use the standard task types
+    conditions.push(`TASKTYPE IN ('PK', 'PP', 'PA', 'CC', 'LD', 'TD', 'RC')`);
   }
   
   // Combine conditions
@@ -554,13 +560,21 @@ exports.handler = async function(event, context) {
       }
     })().catch(error => logger.error(`Unhandled error in background processing: ${error.message}`));
     
-    // Return response with job status
+    // Build the queries for display purposes
+    const displayCountQuery = buildCountQuery(whseid, filters);
+    const displayDataQuery = buildTaskDetailQuery(0, 1000, whseid, filters);
+    
+    // Return response with job status and SQL queries
     return successResponse({
       message: 'TaskDetail copy started as background process',
       jobId,
       totalRecords,
       status: updatedJobStatus.status,
       firstBatchProcessed: true,
+      queries: {
+        countQuery: displayCountQuery.trim(),
+        dataQuery: displayDataQuery.trim()
+      },
       progress: {
         processedRecords: updatedJobStatus.processedRecords,
         insertedRecords: updatedJobStatus.insertedRecords,
