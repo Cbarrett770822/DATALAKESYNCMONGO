@@ -92,42 +92,67 @@ exports.handler = async function(event, context) {
       errorDetails: []
     };
     
-    // Process each record
-    for (const record of transformedRecords) {
+    // Define batch size and calculate number of batches
+    const BATCH_SIZE = 10; // Process 10 records at a time
+    const totalRecords = transformedRecords.length;
+    const batches = Math.ceil(totalRecords / BATCH_SIZE);
+    
+    logger.info(`Processing ${totalRecords} records in ${batches} batches of ${BATCH_SIZE}`);
+    
+    // Process records in batches
+    const batchPromises = [];
+    
+    // Function to process a single record
+    async function processRecord(record) {
       try {
         // Check if record has required fields
         if (!record.TASKDETAILKEY || !record.WHSEID) {
           stats.errors++;
           stats.errorDetails.push(`Record missing required fields: TASKDETAILKEY or WHSEID`);
-          continue;
+          return;
         }
         
-        // Check if record already exists
-        const existingRecord = await TaskDetail.findOne({
-          TASKDETAILKEY: record.TASKDETAILKEY,
-          WHSEID: record.WHSEID
-        });
+        // Use findOneAndUpdate with upsert to efficiently handle both insert and update cases
+        const result = await TaskDetail.findOneAndUpdate(
+          { 
+            TASKDETAILKEY: record.TASKDETAILKEY,
+            WHSEID: record.WHSEID 
+          },
+          { $set: record },
+          { 
+            upsert: true, 
+            new: true,
+            rawResult: true // Return info about the operation
+          }
+        );
         
-        if (existingRecord) {
-          // Update existing record
-          await TaskDetail.updateOne(
-            { _id: existingRecord._id },
-            { $set: record }
-          );
+        // Check if it was an insert or update
+        if (result.lastErrorObject.updatedExisting) {
           stats.updated++;
-          logger.debug(`Updated record: ${record.TASKDETAILKEY}`);
         } else {
-          // Insert new record
-          const newRecord = new TaskDetail(record);
-          await newRecord.save();
           stats.inserted++;
-          logger.debug(`Inserted record: ${record.TASKDETAILKEY}`);
         }
       } catch (error) {
         stats.errors++;
         stats.errorDetails.push(`Error processing record ${record.TASKDETAILKEY || 'unknown'}: ${error.message}`);
         logger.error(`Error processing record: ${error.message}`);
       }
+    }
+    
+    // Process records in batches using Promise.all for better performance
+    for (let i = 0; i < batches; i++) {
+      const start = i * BATCH_SIZE;
+      const end = Math.min(start + BATCH_SIZE, totalRecords);
+      const batchRecords = transformedRecords.slice(start, end);
+      
+      logger.debug(`Processing batch ${i+1}/${batches} with ${batchRecords.length} records`);
+      
+      // Process batch with Promise.all for parallel execution
+      const batchResult = await Promise.all(
+        batchRecords.map(record => processRecord(record))
+      );
+      
+      logger.debug(`Completed batch ${i+1}/${batches}. Current stats: inserted=${stats.inserted}, updated=${stats.updated}, errors=${stats.errors}`);
     }
     
     // Disconnect from MongoDB

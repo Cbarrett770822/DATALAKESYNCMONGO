@@ -237,16 +237,89 @@ export const saveSettings = async (settings) => {
 };
 
 /**
- * Push records to MongoDB
+ * Push records to MongoDB with chunking for large datasets
  * @param {Array} records - Records to push to MongoDB
- * @returns {Promise<Object>} - Response
+ * @returns {Promise<Object>} - Response with combined stats
  */
 export const pushToMongoDB = async (records) => {
   try {
-    return await retryApiCall(async () => {
-      const response = await api.post('/push-to-mongodb', { records });
-      return response.data;
-    });
+    // If we have a small number of records, push them directly
+    if (records.length <= 50) {
+      console.log(`Pushing ${records.length} records to MongoDB in a single request`);
+      return await retryApiCall(async () => {
+        const response = await api.post('/push-to-mongodb', { records });
+        return response.data;
+      });
+    }
+    
+    // For larger datasets, chunk the records to avoid timeouts
+    const CHUNK_SIZE = 50; // Process 50 records per request
+    const chunks = [];
+    
+    // Split records into chunks
+    for (let i = 0; i < records.length; i += CHUNK_SIZE) {
+      chunks.push(records.slice(i, i + CHUNK_SIZE));
+    }
+    
+    console.log(`Pushing ${records.length} records to MongoDB in ${chunks.length} chunks of ${CHUNK_SIZE}`);
+    
+    // Track overall stats
+    const combinedStats = {
+      total: records.length,
+      inserted: 0,
+      updated: 0,
+      errors: 0,
+      errorDetails: [],
+      chunks: chunks.length,
+      completedChunks: 0
+    };
+    
+    // Process each chunk sequentially
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      console.log(`Processing chunk ${i+1}/${chunks.length} with ${chunk.length} records`);
+      
+      try {
+        const response = await retryApiCall(async () => {
+          const chunkResponse = await api.post('/push-to-mongodb', { records: chunk });
+          return chunkResponse.data;
+        });
+        
+        // Update combined stats
+        combinedStats.inserted += response.stats.inserted || 0;
+        combinedStats.updated += response.stats.updated || 0;
+        combinedStats.errors += response.stats.errors || 0;
+        combinedStats.completedChunks++;
+        
+        if (response.stats.errorDetails && response.stats.errorDetails.length > 0) {
+          combinedStats.errorDetails = combinedStats.errorDetails.concat(response.stats.errorDetails);
+        }
+        
+        console.log(`Completed chunk ${i+1}/${chunks.length}. Current stats: inserted=${combinedStats.inserted}, updated=${combinedStats.updated}, errors=${combinedStats.errors}`);
+        
+        // Dispatch progress event for UI updates
+        if (typeof window !== 'undefined') {
+          const progressEvent = new CustomEvent('mongodb-chunk-progress', {
+            detail: {
+              currentChunk: i,
+              completedChunks: combinedStats.completedChunks,
+              totalChunks: chunks.length,
+              stats: { ...combinedStats }
+            }
+          });
+          window.dispatchEvent(progressEvent);
+        }
+      } catch (error) {
+        console.error(`Error processing chunk ${i+1}:`, error);
+        combinedStats.errors += chunk.length; // Count all records in the failed chunk as errors
+        combinedStats.errorDetails.push(`Failed to process chunk ${i+1}: ${error.message}`);
+      }
+    }
+    
+    return {
+      message: 'Records processed successfully',
+      stats: combinedStats
+    };
   } catch (error) {
     console.error('Error in pushToMongoDB:', error);
     throw error;

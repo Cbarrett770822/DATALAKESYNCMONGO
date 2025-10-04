@@ -30,7 +30,16 @@ function ApiTester() {
   const [queryStatus, setQueryStatus] = useState({ loading: false, success: false, error: null, queryId: null });
   const [jobStatus, setJobStatus] = useState({ loading: false, status: null, progress: 0, error: null });
   const [resultsStatus, setResultsStatus] = useState({ loading: false, success: false, error: null, data: null });
-  const [mongoDbStatus, setMongoDbStatus] = useState({ loading: false, success: false, error: null, stats: null });
+  const [mongoDbStatus, setMongoDbStatus] = useState({ 
+    loading: false, 
+    success: false, 
+    error: null, 
+    stats: null,
+    progress: 0,
+    processingChunks: false,
+    currentChunk: 0,
+    totalChunks: 0
+  });
   
   // State for polling
   const [isPolling, setIsPolling] = useState(false);
@@ -254,29 +263,74 @@ function ApiTester() {
         loading: false,
         success: false,
         error: 'No results data available to push to MongoDB',
-        stats: null
+        stats: null,
+        progress: 0,
+        processingChunks: false,
+        currentChunk: 0,
+        totalChunks: 0
       });
       return;
     }
     
     try {
-      // Set loading state
+      const records = resultsStatus.data.results;
+      const totalRecords = records.length;
+      
+      // Calculate number of chunks if we have a large dataset
+      const CHUNK_SIZE = 50;
+      const needsChunking = totalRecords > CHUNK_SIZE;
+      const totalChunks = needsChunking ? Math.ceil(totalRecords / CHUNK_SIZE) : 1;
+      
+      // Set initial loading state
       setMongoDbStatus({
         loading: true,
         success: false,
         error: null,
-        stats: null
+        stats: null,
+        progress: 0,
+        processingChunks: needsChunking,
+        currentChunk: 0,
+        totalChunks: totalChunks
       });
       
+      // Set up a progress monitoring function for chunked processing
+      const updateProgress = (currentChunk, completedChunks, stats) => {
+        const progress = Math.floor((completedChunks / totalChunks) * 100);
+        setMongoDbStatus(prev => ({
+          ...prev,
+          progress: progress,
+          currentChunk: currentChunk + 1,
+          stats: stats
+        }));
+      };
+      
+      // Add event listener for progress updates
+      if (needsChunking) {
+        window.addEventListener('mongodb-chunk-progress', (event) => {
+          if (event.detail) {
+            updateProgress(event.detail.currentChunk, event.detail.completedChunks, event.detail.stats);
+          }
+        });
+      }
+      
       // Push data to MongoDB
-      const response = await pushToMongoDB(resultsStatus.data.results);
+      const response = await pushToMongoDB(records);
+      
+      // Clean up event listener
+      if (needsChunking) {
+        window.removeEventListener('mongodb-chunk-progress', () => {});
+      }
       
       // Update status with success
       setMongoDbStatus({
         loading: false,
         success: true,
         error: null,
-        stats: response.stats
+        stats: response.stats,
+        progress: 100,
+        processingChunks: false,
+        currentChunk: totalChunks,
+        totalChunks: totalChunks
       });
     } catch (error) {
       console.error('Error pushing data to MongoDB:', error);
@@ -290,6 +344,10 @@ function ApiTester() {
         success: false,
         error: `API Error (${statusCode}): ${errorDetails}`,
         stats: null,
+        progress: 0,
+        processingChunks: false,
+        currentChunk: 0,
+        totalChunks: 0,
         rawError: error
       });
     }
@@ -649,17 +707,34 @@ function ApiTester() {
                     <Divider sx={{ my: 2 }} />
                     
                     {/* MongoDB Push Button */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 2 }}>
                       <Button
                         variant="contained"
                         color="secondary"
                         disabled={!resultsStatus.data || !resultsStatus.data.results || resultsStatus.data.results.length === 0 || mongoDbStatus.loading}
                         onClick={handlePushToMongoDB}
                         startIcon={mongoDbStatus.loading ? <CircularProgress size={20} color="inherit" /> : null}
-                        sx={{ px: 4, py: 1 }}
+                        sx={{ px: 4, py: 1, mb: 1 }}
                       >
-                        {mongoDbStatus.loading ? 'Pushing to MongoDB...' : 'Push Results to MongoDB'}
+                        {mongoDbStatus.loading ? 
+                          mongoDbStatus.processingChunks ? 
+                            `Processing Chunk ${mongoDbStatus.currentChunk + 1}/${mongoDbStatus.totalChunks}...` : 
+                            'Pushing to MongoDB...' : 
+                          'Push Results to MongoDB'}
                       </Button>
+                      
+                      {mongoDbStatus.loading && mongoDbStatus.processingChunks && (
+                        <Box sx={{ width: '100%', maxWidth: 400, mt: 1 }}>
+                          <LinearProgress 
+                            variant="determinate" 
+                            value={mongoDbStatus.progress} 
+                            sx={{ height: 10, borderRadius: 5 }}
+                          />
+                          <Typography variant="body2" align="center" sx={{ mt: 1 }}>
+                            {mongoDbStatus.progress}% Complete ({mongoDbStatus.currentChunk}/{mongoDbStatus.totalChunks} chunks)
+                          </Typography>
+                        </Box>
+                      )}
                     </Box>
                     
                     {/* MongoDB Push Status */}
@@ -676,10 +751,30 @@ function ApiTester() {
                           <Typography variant="body2">• Total records processed: {mongoDbStatus.stats.total}</Typography>
                           <Typography variant="body2">• New records inserted: {mongoDbStatus.stats.inserted}</Typography>
                           <Typography variant="body2">• Existing records updated: {mongoDbStatus.stats.updated}</Typography>
+                          {mongoDbStatus.stats.chunks > 1 && (
+                            <Typography variant="body2">• Processed in {mongoDbStatus.stats.chunks} chunks ({mongoDbStatus.stats.completedChunks} completed)</Typography>
+                          )}
                           {mongoDbStatus.stats.errors > 0 && (
                             <Typography variant="body2" color="error">
                               • Errors: {mongoDbStatus.stats.errors}
                             </Typography>
+                          )}
+                          {mongoDbStatus.stats.errorDetails && mongoDbStatus.stats.errorDetails.length > 0 && (
+                            <Box sx={{ mt: 1, maxHeight: '100px', overflow: 'auto', bgcolor: '#fff5f5', p: 1, borderRadius: 1 }}>
+                              <Typography variant="caption" color="error">
+                                Error Details:
+                              </Typography>
+                              {mongoDbStatus.stats.errorDetails.slice(0, 5).map((error, index) => (
+                                <Typography key={index} variant="caption" component="div" color="error">
+                                  - {error}
+                                </Typography>
+                              ))}
+                              {mongoDbStatus.stats.errorDetails.length > 5 && (
+                                <Typography variant="caption" color="error">
+                                  ... and {mongoDbStatus.stats.errorDetails.length - 5} more errors
+                                </Typography>
+                              )}
+                            </Box>
                           )}
                         </Box>
                       </Alert>
