@@ -115,10 +115,11 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
   if (filters.year) {
     try {
       // Use a date range comparison that's compatible with most SQL dialects
-      const yearStart = `${filters.year}-01-01`;
-      const yearEnd = `${filters.year}-12-31`;
+      // and handles ISO 8601 format dates (YYYY-MM-DDTHH:MM:SS.sssZ)
+      const yearStart = `${filters.year}-01-01T00:00:00.000Z`;
+      const yearEnd = `${filters.year}-12-31T23:59:59.999Z`;
       
-      // Use simple string comparison which works in most SQL dialects
+      // Use string comparison with full ISO format to ensure proper date filtering
       conditions.push(`(ADDDATE >= '${yearStart}' AND ADDDATE <= '${yearEnd}')`);
       
       logger.info(`Using date range filter: ADDDATE between ${yearStart} and ${yearEnd}`);
@@ -177,10 +178,11 @@ function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
   if (filters.year) {
     try {
       // Use a date range comparison that's compatible with most SQL dialects
-      const yearStart = `${filters.year}-01-01`;
-      const yearEnd = `${filters.year}-12-31`;
+      // and handles ISO 8601 format dates (YYYY-MM-DDTHH:MM:SS.sssZ)
+      const yearStart = `${filters.year}-01-01T00:00:00.000Z`;
+      const yearEnd = `${filters.year}-12-31T23:59:59.999Z`;
       
-      // Use simple string comparison which works in most SQL dialects
+      // Use string comparison with full ISO format to ensure proper date filtering
       conditions.push(`(ADDDATE >= '${yearStart}' AND ADDDATE <= '${yearEnd}')`);
       
       logger.info(`Using date range filter: ADDDATE between ${yearStart} and ${yearEnd}`);
