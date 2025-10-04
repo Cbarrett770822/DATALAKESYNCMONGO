@@ -321,9 +321,12 @@ async function getToken() {
 /**
  * Submit a SQL query to DataFabric
  * @param {string} sqlQuery - SQL query to execute
+ * @param {Object} paginationParams - Optional pagination parameters
+ * @param {number} paginationParams.offset - Result offset
+ * @param {number} paginationParams.limit - Result limit
  * @returns {Promise<Object>} - Job submission response
  */
-async function submitQuery(sqlQuery) {
+async function submitQuery(sqlQuery, paginationParams = null) {
   // Get credentials
   const credentials = loadCredentials();
   
@@ -333,10 +336,20 @@ async function submitQuery(sqlQuery) {
   // Prepare the request URL
   const submitUrl = new URL(`${credentials.ionApiUrl}/${credentials.tenant}/DATAFABRIC/compass/v2/jobs/`);
   
+  // Add pagination parameters to the URL if provided
+  if (paginationParams) {
+    if (paginationParams.offset !== undefined) {
+      submitUrl.searchParams.append('offset', paginationParams.offset);
+    }
+    if (paginationParams.limit !== undefined) {
+      submitUrl.searchParams.append('limit', paginationParams.limit);
+    }
+  }
+  
   const options = {
     hostname: submitUrl.hostname,
     port: submitUrl.port || 443,
-    path: submitUrl.pathname,
+    path: submitUrl.pathname + submitUrl.search, // Include search params in the path
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -350,6 +363,11 @@ async function submitQuery(sqlQuery) {
     console.log('Submitting query:', sqlQuery);
     console.log('Request URL:', submitUrl.toString());
     console.log('Request headers:', JSON.stringify(options.headers, null, 2).replace(options.headers.Authorization, 'Bearer [REDACTED]'));
+    
+    // Log pagination parameters if provided
+    if (paginationParams) {
+      console.log('Pagination parameters:', JSON.stringify(paginationParams));
+    }
     
     // Log the complete SQL query for debugging
     console.log('FINAL SQL QUERY BEING SENT:', sqlQuery.trim().replace(/\s+/g, ' '));
