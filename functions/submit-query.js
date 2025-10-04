@@ -146,14 +146,29 @@ exports.handler = async function(event, context) {
       hasGetResults: typeof ionApi.getResults === 'function'
     });
     
-    // Submit the query using the ION API module
-    const response = await ionApi.submitQuery(sqlQuery);
+    // Extract pagination parameters if provided
+    const paginationParams = {};
+    if (requestBody.offset !== undefined) {
+      paginationParams.offset = parseInt(requestBody.offset, 10);
+    }
+    if (requestBody.limit !== undefined) {
+      paginationParams.limit = parseInt(requestBody.limit, 10);
+    }
+    
+    logDebug('Pagination parameters', paginationParams);
+    
+    // Submit the query using the ION API module with pagination parameters
+    const response = await ionApi.submitQuery(sqlQuery, Object.keys(paginationParams).length > 0 ? paginationParams : null);
     logDebug('API response', response);
     
-    // Return success response
+    // Return success response with pagination parameters
     return successResponse({
       queryId: response.queryId || response.id,
-      status: response.status || 'submitted'
+      status: response.status || 'submitted',
+      pagination: {
+        offset: paginationParams.offset !== undefined ? paginationParams.offset : 0,
+        limit: paginationParams.limit !== undefined ? paginationParams.limit : 1000
+      }
     });
   } catch (error) {
     console.error('Error in submit-query function:', error);

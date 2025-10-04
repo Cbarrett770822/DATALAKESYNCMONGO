@@ -65,13 +65,20 @@ export const getIonToken = async () => {
 
 /**
  * Submit a query to the DataFabric API
- * @param {Object} options - Query options
+ * @param {string|Object} options - SQL query string or options object
  * @returns {Promise<Object>} - Query submission response
  */
 export const submitQuery = async (options) => {
   try {
+    // Handle both string and object parameters
+    const requestData = typeof options === 'string' 
+      ? { sqlQuery: options } 
+      : options;
+      
+    console.log('Submitting query with options:', requestData);
+    
     return await retryApiCall(async () => {
-      const response = await api.post('/submit-query', options);
+      const response = await api.post('/submit-query', requestData);
       return response.data;
     });
   } catch (error) {

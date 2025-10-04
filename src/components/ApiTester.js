@@ -19,7 +19,11 @@ import { submitQuery, checkQueryStatus as checkStatus, getQueryResults as getRes
 
 function ApiTester() {
   // State for SQL query
-  const [sqlQuery, setSqlQuery] = useState('SELECT * FROM "CSWMS_wmwhse_TASKDETAIL" LIMIT 1');
+  const [sqlQuery, setSqlQuery] = useState('SELECT * FROM "CSWMS_wmwhse_TASKDETAIL"');
+  
+  // State for pagination
+  const [offset, setOffset] = useState(0);
+  const [limit, setLimit] = useState(10);
   
   // State for API responses
   const [tokenStatus, setTokenStatus] = useState({ loading: false, success: false, error: null });
@@ -36,6 +40,18 @@ function ApiTester() {
     setSqlQuery(event.target.value);
   };
 
+  // Handle offset change
+  const handleOffsetChange = (event) => {
+    const value = parseInt(event.target.value, 10);
+    setOffset(isNaN(value) ? 0 : Math.max(0, value));
+  };
+
+  // Handle limit change
+  const handleLimitChange = (event) => {
+    const value = parseInt(event.target.value, 10);
+    setLimit(isNaN(value) ? 10 : Math.max(1, value));
+  };
+
   // Submit query
   const handleSubmitQuery = async () => {
     try {
@@ -50,8 +66,12 @@ function ApiTester() {
         setIsPolling(false);
       }
       
-      // Submit query
-      const response = await submitQuery(sqlQuery);
+      // Submit query with pagination parameters
+      const response = await submitQuery({
+        sqlQuery,
+        offset,
+        limit
+      });
       
       // Update query status
       setQueryStatus({
@@ -144,7 +164,7 @@ function ApiTester() {
     try {
       setResultsStatus({ loading: true, success: false, error: null, data: null });
       
-      const resultsResponse = await getResults(queryId);
+      const resultsResponse = await getResults(queryId, offset, limit);
       console.log('Results response received:', resultsResponse);
       
       // Check if we have data in the response
@@ -257,6 +277,36 @@ function ApiTester() {
           variant="outlined"
           sx={{ mb: 2 }}
         />
+        <Grid container spacing={2} sx={{ mb: 2 }}>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Offset"
+              type="number"
+              value={offset}
+              onChange={handleOffsetChange}
+              fullWidth
+              variant="outlined"
+              InputProps={{
+                inputProps: { min: 0 }
+              }}
+              helperText="Starting position for records (0-based)"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              label="Limit"
+              type="number"
+              value={limit}
+              onChange={handleLimitChange}
+              fullWidth
+              variant="outlined"
+              InputProps={{
+                inputProps: { min: 1 }
+              }}
+              helperText="Maximum number of records to return"
+            />
+          </Grid>
+        </Grid>
         <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
           <Button
             variant="contained"
@@ -317,14 +367,34 @@ function ApiTester() {
               )}
               
               {queryStatus.queryId && (
-                <Box sx={{ mt: 2 }}>
-                  <Typography variant="subtitle2">Query ID:</Typography>
-                  <Paper sx={{ p: 1, bgcolor: '#f5f5f5' }}>
-                    <Typography variant="body2" component="code">
-                      {queryStatus.queryId}
-                    </Typography>
-                  </Paper>
-                </Box>
+                <>
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2">Query ID:</Typography>
+                    <Paper sx={{ p: 1, bgcolor: '#f5f5f5' }}>
+                      <Typography variant="body2" component="code">
+                        {queryStatus.queryId}
+                      </Typography>
+                    </Paper>
+                  </Box>
+                  
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="subtitle2">Pagination Parameters:</Typography>
+                    <Paper sx={{ p: 1, bgcolor: '#f5f5f5' }}>
+                      <Grid container spacing={2}>
+                        <Grid item xs={6}>
+                          <Typography variant="body2">
+                            <strong>Offset:</strong> {offset}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2">
+                            <strong>Limit:</strong> {limit}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </Paper>
+                  </Box>
+                </>
               )}
             </AccordionDetails>
           </Accordion>
@@ -471,6 +541,37 @@ function ApiTester() {
                         </Paper>
                       </Grid>
                     </Grid>
+                    
+                    {/* Pagination Navigation */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                      <Button
+                        variant="outlined"
+                        disabled={offset === 0}
+                        onClick={() => {
+                          const newOffset = Math.max(0, offset - limit);
+                          setOffset(newOffset);
+                          handleSubmitQuery();
+                        }}
+                        sx={{ mx: 1 }}
+                      >
+                        Previous Page
+                      </Button>
+                      <Typography variant="body1" sx={{ alignSelf: 'center', mx: 2 }}>
+                        Page {Math.floor(offset / limit) + 1}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        disabled={!resultsStatus.data.results || resultsStatus.data.results.length < limit}
+                        onClick={() => {
+                          const newOffset = offset + limit;
+                          setOffset(newOffset);
+                          handleSubmitQuery();
+                        }}
+                        sx={{ mx: 1 }}
+                      >
+                        Next Page
+                      </Button>
+                    </Box>
                     
                     {resultsStatus.data.columns && resultsStatus.data.columns.length > 0 && (
                       <>
