@@ -15,7 +15,7 @@ import {
   LinearProgress
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { submitQuery, checkQueryStatus as checkStatus, getQueryResults as getResults } from '../utils/api';
+import { submitQuery, checkQueryStatus as checkStatus, getQueryResults as getResults, pushToMongoDB } from '../utils/api';
 
 function ApiTester() {
   // State for SQL query
@@ -30,6 +30,7 @@ function ApiTester() {
   const [queryStatus, setQueryStatus] = useState({ loading: false, success: false, error: null, queryId: null });
   const [jobStatus, setJobStatus] = useState({ loading: false, status: null, progress: 0, error: null });
   const [resultsStatus, setResultsStatus] = useState({ loading: false, success: false, error: null, data: null });
+  const [mongoDbStatus, setMongoDbStatus] = useState({ loading: false, success: false, error: null, stats: null });
   
   // State for polling
   const [isPolling, setIsPolling] = useState(false);
@@ -242,6 +243,55 @@ function ApiTester() {
       clearInterval(pollingInterval);
       setIsPolling(false);
       setJobStatus(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  // Handle pushing data to MongoDB
+  const handlePushToMongoDB = async () => {
+    // Check if we have results data
+    if (!resultsStatus.data || !resultsStatus.data.results || resultsStatus.data.results.length === 0) {
+      setMongoDbStatus({
+        loading: false,
+        success: false,
+        error: 'No results data available to push to MongoDB',
+        stats: null
+      });
+      return;
+    }
+    
+    try {
+      // Set loading state
+      setMongoDbStatus({
+        loading: true,
+        success: false,
+        error: null,
+        stats: null
+      });
+      
+      // Push data to MongoDB
+      const response = await pushToMongoDB(resultsStatus.data.results);
+      
+      // Update status with success
+      setMongoDbStatus({
+        loading: false,
+        success: true,
+        error: null,
+        stats: response.stats
+      });
+    } catch (error) {
+      console.error('Error pushing data to MongoDB:', error);
+      
+      // Extract detailed error information
+      const errorDetails = error.response?.data?.details || error.response?.data?.error || error.message || 'Failed to push data to MongoDB';
+      const statusCode = error.response?.status || 'Unknown';
+      
+      setMongoDbStatus({
+        loading: false,
+        success: false,
+        error: `API Error (${statusCode}): ${errorDetails}`,
+        stats: null,
+        rawError: error
+      });
     }
   };
 
@@ -598,6 +648,45 @@ function ApiTester() {
                     
                     <Divider sx={{ my: 2 }} />
                     
+                    {/* MongoDB Push Button */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                      <Button
+                        variant="contained"
+                        color="secondary"
+                        disabled={!resultsStatus.data || !resultsStatus.data.results || resultsStatus.data.results.length === 0 || mongoDbStatus.loading}
+                        onClick={handlePushToMongoDB}
+                        startIcon={mongoDbStatus.loading ? <CircularProgress size={20} color="inherit" /> : null}
+                        sx={{ px: 4, py: 1 }}
+                      >
+                        {mongoDbStatus.loading ? 'Pushing to MongoDB...' : 'Push Results to MongoDB'}
+                      </Button>
+                    </Box>
+                    
+                    {/* MongoDB Push Status */}
+                    {mongoDbStatus.error && (
+                      <Alert severity="error" sx={{ mb: 2 }}>
+                        {mongoDbStatus.error}
+                      </Alert>
+                    )}
+                    
+                    {mongoDbStatus.success && mongoDbStatus.stats && (
+                      <Alert severity="success" sx={{ mb: 2 }}>
+                        <Typography variant="subtitle2">Successfully pushed data to MongoDB:</Typography>
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="body2">• Total records processed: {mongoDbStatus.stats.total}</Typography>
+                          <Typography variant="body2">• New records inserted: {mongoDbStatus.stats.inserted}</Typography>
+                          <Typography variant="body2">• Existing records updated: {mongoDbStatus.stats.updated}</Typography>
+                          {mongoDbStatus.stats.errors > 0 && (
+                            <Typography variant="body2" color="error">
+                              • Errors: {mongoDbStatus.stats.errors}
+                            </Typography>
+                          )}
+                        </Box>
+                      </Alert>
+                    )}
+                    
+                    <Divider sx={{ my: 2 }} />
+                    
                     <Typography variant="subtitle2">Results Data:</Typography>
                     {resultsStatus.data.results && resultsStatus.data.results.length > 0 ? (
                       <Paper 
@@ -685,11 +774,26 @@ function ApiTester() {
                   p: 2, 
                   bgcolor: '#f5f5f5',
                   maxHeight: '200px',
-                  overflow: 'auto'
+                  overflow: 'auto',
+                  mb: 2
                 }}
               >
                 <pre style={{ margin: 0, fontFamily: '"Roboto Mono", monospace', fontSize: '0.875rem' }}>
                   {formatJson(resultsStatus.data)}
+                </pre>
+              </Paper>
+              
+              <Typography variant="subtitle2" gutterBottom>MongoDB Push Response:</Typography>
+              <Paper 
+                sx={{ 
+                  p: 2, 
+                  bgcolor: '#f5f5f5',
+                  maxHeight: '200px',
+                  overflow: 'auto'
+                }}
+              >
+                <pre style={{ margin: 0, fontFamily: '"Roboto Mono", monospace', fontSize: '0.875rem' }}>
+                  {formatJson(mongoDbStatus.stats || mongoDbStatus.error || null)}
                 </pre>
               </Paper>
             </AccordionDetails>

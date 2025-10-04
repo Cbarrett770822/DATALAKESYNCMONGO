@@ -236,4 +236,21 @@ export const saveSettings = async (settings) => {
   }
 };
 
+/**
+ * Push records to MongoDB
+ * @param {Array} records - Records to push to MongoDB
+ * @returns {Promise<Object>} - Response
+ */
+export const pushToMongoDB = async (records) => {
+  try {
+    return await retryApiCall(async () => {
+      const response = await api.post('/push-to-mongodb', { records });
+      return response.data;
+    });
+  } catch (error) {
+    console.error('Error in pushToMongoDB:', error);
+    throw error;
+  }
+};
+
 export default api;
