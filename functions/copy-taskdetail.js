@@ -134,8 +134,10 @@ function buildTaskDetailQuery(offset, limit, whseid = 'wmwhse1', filters = {}) {
   if (filters.taskType) {
     conditions.push(`TASKTYPE = '${filters.taskType}'`);
   } else {
-    // If no task type is specified, use the standard task types
-    conditions.push(`TASKTYPE IN ('PK', 'PP', 'PA', 'CC', 'LD', 'TD', 'RC')`);
+    // If no task type is specified, use the expanded list of task types
+    // Primary task types: PK, PP, PA, CC, LD, TD, RC
+    // Additional high-volume task types: PIA, PIB, DP, MV, RP, CR
+    conditions.push(`TASKTYPE IN ('PK', 'PP', 'PA', 'CC', 'LD', 'TD', 'RC', 'PIA', 'PIB', 'DP', 'MV', 'RP', 'CR')`);
   }
   
   // Combine conditions
@@ -199,8 +201,10 @@ function buildCountQuery(whseid = 'wmwhse1', filters = {}) {
   if (filters.taskType) {
     conditions.push(`TASKTYPE = '${filters.taskType}'`);
   } else {
-    // If no task type is specified, use the standard task types
-    conditions.push(`TASKTYPE IN ('PK', 'PP', 'PA', 'CC', 'LD', 'TD', 'RC')`);
+    // If no task type is specified, use the expanded list of task types
+    // Primary task types: PK, PP, PA, CC, LD, TD, RC
+    // Additional high-volume task types: PIA, PIB, DP, MV, RP, CR
+    conditions.push(`TASKTYPE IN ('PK', 'PP', 'PA', 'CC', 'LD', 'TD', 'RC', 'PIA', 'PIB', 'DP', 'MV', 'RP', 'CR')`);
   }
   
   // Combine conditions

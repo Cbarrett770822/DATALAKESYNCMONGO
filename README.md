@@ -54,6 +54,7 @@ This application provides a user-friendly interface to synchronize data from Inf
 - [TaskDetail Sync UI Flow](docs/TaskDetail_Sync_UI_Flow.md): User interface flow for TaskDetail synchronization
 - [TaskDetail Sync Implementation Guide](docs/TaskDetail_Sync_Implementation_Guide.md): Technical implementation details
 - [TABLE_NAME_FIX.md](TABLE_NAME_FIX.md): Documentation of the fix for the DataLake table name issue
+- [TASK_TYPE_EXPANSION.md](TASK_TYPE_EXPANSION.md): Documentation of the task type expansion to improve data coverage
 
 ## Getting Started
 

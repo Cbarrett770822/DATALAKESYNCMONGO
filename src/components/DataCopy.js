@@ -21,13 +21,21 @@ const logger = {
 
 // Task types for dropdown
 const taskTypes = [
+  // Primary task types
   { value: 'PK', label: 'Pick (PK)' },
   { value: 'PP', label: 'Pack (PP)' },
   { value: 'PA', label: 'Put Away (PA)' },
   { value: 'CC', label: 'Cycle Count (CC)' },
   { value: 'LD', label: 'Load (LD)' },
   { value: 'TD', label: 'Task Detail (TD)' },
-  { value: 'RC', label: 'Receive (RC)' }
+  { value: 'RC', label: 'Receive (RC)' },
+  // Additional high-volume task types
+  { value: 'PIA', label: 'PIA' },
+  { value: 'PIB', label: 'PIB' },
+  { value: 'DP', label: 'DP' },
+  { value: 'MV', label: 'Move (MV)' },
+  { value: 'RP', label: 'RP' },
+  { value: 'CR', label: 'CR' }
 ];
 
 // Generate years for dropdown (last 5 years)
