@@ -90,14 +90,14 @@ function DataCopySteps() {
     setLimit(isNaN(value) ? 100 : Math.max(1, value));
   };
   
-  // Generate SQL query - simplified to just SELECT * FROM table
+  // Generate SQL query - using exact same format as API Tester
   const generateSqlQuery = () => {
-    // Use the correct table name
+    // Use the correct table name - IMPORTANT: Use double quotes around table name
     let tableName = warehouseId === 'all' 
       ? 'CSWMS_wmwhse_TASKDETAIL' 
       : `CSWMS_${warehouseId}_TASKDETAIL`;
     
-    // Create the simplest possible query
+    // Create the simplest possible query - exactly matching the API Tester default
     let sql = `SELECT * FROM "${tableName}"`;
     
     // Store and return the SQL
@@ -127,17 +127,18 @@ function DataCopySteps() {
       // Generate SQL query
       const sqlQuery = generateSqlQuery();
       
-      // Submit query with pagination parameters handled by the API
+      // Submit query with pagination parameters - exactly like API Tester
       console.log('Submitting query to DataFabric API:', {
         sqlQuery,
         offset,
         limit
       });
       
+      // Use the same parameter format as API Tester
       const response = await submitQuery({
         sqlQuery,
-        offset: offset,  // These will be handled by the DataFabric API
-        limit: limit
+        offset,
+        limit
       });
       
       // Log the response for debugging
@@ -235,20 +236,21 @@ function DataCopySteps() {
     setPollingInterval(interval);
   };
   
-  // Step 2: Fetch query results
+  // Step 2: Fetch query results - using the same approach as API Tester
   const fetchResults = async (queryId) => {
     try {
       console.log('Fetching results for query ID:', queryId);
       setResultsStatus({ loading: true, success: false, error: null, data: null });
       
-      const response = await getQueryResults(queryId);
-      console.log('Query results response:', response);
+      // Pass offset and limit parameters like API Tester does
+      const resultsResponse = await getQueryResults(queryId, offset, limit);
+      console.log('Results response received:', resultsResponse);
       
       setResultsStatus({
         loading: false,
         success: true,
         error: null,
-        data: response
+        data: resultsResponse
       });
       
       // Move to next step and ensure it's expanded
