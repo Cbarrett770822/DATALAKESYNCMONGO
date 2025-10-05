@@ -1,7 +1,8 @@
 // Netlify function for pushing DataLake records to MongoDB
 const mongoose = require('mongoose');
-const TaskDetail = require('./models/taskdetail');
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
+const { extractTableNameFromSQL, identifyPrimaryKeyFields } = require('./utils/table-utils');
+const { getOrCreateModel } = require('./utils/model-factory');
 
 // Configure logger
 const logger = {
@@ -79,6 +80,31 @@ exports.handler = async function(event, context) {
     // Connect to MongoDB
     await connectToMongoDB();
     
+    // Determine table information
+    let tableName = requestBody.tableName;
+    let columns = requestBody.columns;
+    let sqlQuery = requestBody.sqlQuery;
+    
+    // If table name is not provided, try to extract it from SQL query
+    if (!tableName && sqlQuery) {
+      tableName = extractTableNameFromSQL(sqlQuery);
+      logger.info(`Extracted table name from SQL query: ${tableName}`);
+    }
+    
+    // If still no table name, use a default
+    if (!tableName) {
+      tableName = 'unknown_table';
+      logger.warn(`Could not determine table name, using default: ${tableName}`);
+    }
+    
+    // Get or create the model for this table
+    const Model = getOrCreateModel(tableName, columns);
+    logger.info(`Using model for table: ${tableName}`);
+    
+    // Identify primary key fields
+    const keyFields = requestBody.keyFields || identifyPrimaryKeyFields(columns);
+    logger.info(`Using key fields for identification: ${keyFields.join(', ')}`);
+    
     // Transform records
     const transformedRecords = transformData(requestBody.records);
     logger.info(`Transformed ${transformedRecords.length} records for MongoDB`);
@@ -105,19 +131,30 @@ exports.handler = async function(event, context) {
     // Function to process a single record
     async function processRecord(record) {
       try {
-        // Check if record has required fields
-        if (!record.TASKDETAILKEY || !record.WHSEID) {
-          stats.errors++;
-          stats.errorDetails.push(`Record missing required fields: TASKDETAILKEY or WHSEID`);
+        // Build query based on key fields
+        const query = {};
+        let hasAllKeys = true;
+        let recordIdentifier = 'unknown';
+        
+        // Check if record has all required key fields
+        for (const keyField of keyFields) {
+          if (record[keyField] === undefined) {
+            hasAllKeys = false;
+            stats.errors++;
+            stats.errorDetails.push(`Record missing required key field: ${keyField}`);
+            return;
+          }
+          query[keyField] = record[keyField];
+          recordIdentifier = record[keyField]; // Use the first key field as identifier in logs
+        }
+        
+        if (!hasAllKeys) {
           return;
         }
         
         // Use findOneAndUpdate with upsert to efficiently handle both insert and update cases
-        const result = await TaskDetail.findOneAndUpdate(
-          { 
-            TASKDETAILKEY: record.TASKDETAILKEY,
-            WHSEID: record.WHSEID 
-          },
+        const result = await Model.findOneAndUpdate(
+          query,
           { $set: record },
           { 
             upsert: true, 
@@ -127,14 +164,17 @@ exports.handler = async function(event, context) {
         );
         
         // Check if it was an insert or update
-        if (result.lastErrorObject.updatedExisting) {
+        if (result.lastErrorObject && result.lastErrorObject.updatedExisting) {
           stats.updated++;
+          logger.debug(`Updated record: ${recordIdentifier}`);
         } else {
           stats.inserted++;
+          logger.debug(`Inserted record: ${recordIdentifier}`);
         }
       } catch (error) {
         stats.errors++;
-        stats.errorDetails.push(`Error processing record ${record.TASKDETAILKEY || 'unknown'}: ${error.message}`);
+        const recordId = keyFields.map(key => record[key] || 'unknown').join('-');
+        stats.errorDetails.push(`Error processing record ${recordId}: ${error.message}`);
         logger.error(`Error processing record: ${error.message}`);
       }
     }

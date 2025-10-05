@@ -313,8 +313,18 @@ function ApiTester() {
         });
       }
       
+      // Extract table information from results
+      const tableInfo = {
+        // Try to extract table name from SQL query
+        sqlQuery: sqlQuery,
+        // Pass column definitions from results
+        columns: resultsStatus.data.columns || [],
+      };
+      
+      console.log('Pushing data to MongoDB with table info:', tableInfo);
+      
       // Push data to MongoDB
-      const response = await pushToMongoDB(records);
+      const response = await pushToMongoDB(records, tableInfo);
       
       // Clean up event listener
       if (needsChunking) {

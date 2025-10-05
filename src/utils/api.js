@@ -239,15 +239,26 @@ export const saveSettings = async (settings) => {
 /**
  * Push records to MongoDB with chunking for large datasets
  * @param {Array} records - Records to push to MongoDB
+ * @param {Object} options - Options for pushing data
+ * @param {string} options.tableName - Name of the table (optional)
+ * @param {Array} options.columns - Column definitions (optional)
+ * @param {string} options.sqlQuery - SQL query that generated the data (optional)
+ * @param {Array} options.keyFields - Fields to use as keys for upsert (optional)
  * @returns {Promise<Object>} - Response with combined stats
  */
-export const pushToMongoDB = async (records) => {
+export const pushToMongoDB = async (records, options = {}) => {
   try {
     // If we have a small number of records, push them directly
     if (records.length <= 50) {
       console.log(`Pushing ${records.length} records to MongoDB in a single request`);
       return await retryApiCall(async () => {
-        const response = await api.post('/push-to-mongodb', { records });
+        const response = await api.post('/push-to-mongodb', { 
+          records,
+          tableName: options.tableName,
+          columns: options.columns,
+          sqlQuery: options.sqlQuery,
+          keyFields: options.keyFields
+        });
         return response.data;
       });
     }
@@ -281,7 +292,13 @@ export const pushToMongoDB = async (records) => {
       
       try {
         const response = await retryApiCall(async () => {
-          const chunkResponse = await api.post('/push-to-mongodb', { records: chunk });
+          const chunkResponse = await api.post('/push-to-mongodb', { 
+            records: chunk,
+            tableName: options.tableName,
+            columns: options.columns,
+            sqlQuery: options.sqlQuery,
+            keyFields: options.keyFields
+          });
           return chunkResponse.data;
         });
         
