@@ -90,28 +90,18 @@ function DataCopySteps() {
     setLimit(isNaN(value) ? 100 : Math.max(1, value));
   };
   
-  // Generate SQL query based on filters
+  // Generate SQL query - simplified to just SELECT * FROM table
   const generateSqlQuery = () => {
     // Use the correct table name
     let tableName = warehouseId === 'all' 
       ? 'CSWMS_wmwhse_TASKDETAIL' 
       : `CSWMS_${warehouseId}_TASKDETAIL`;
     
-    // Create a simple base query
+    // Create the simplest possible query
     let sql = `SELECT * FROM "${tableName}"`;
     
-    // Add WHERE clause if filters are applied
-    const conditions = [];
-    if (taskType) conditions.push(`TASKTYPE = '${taskType}'`);
-    if (year) conditions.push(`EXTRACT(YEAR FROM ADDDATE) = ${year}`);
-    
-    if (conditions.length > 0) {
-      sql += ` WHERE ${conditions.join(' AND ')}`;
-    }
-    
-    // Add ORDER BY clause
-    sql += ` ORDER BY ADDDATE DESC`;
-    
+    // Store and return the SQL
+    console.log('Generated SQL query:', sql);
     setGeneratedSql(sql);
     return sql;
   };
@@ -138,11 +128,20 @@ function DataCopySteps() {
       const sqlQuery = generateSqlQuery();
       
       // Submit query with pagination parameters handled by the API
+      console.log('Submitting query to DataFabric API:', {
+        sqlQuery,
+        offset,
+        limit
+      });
+      
       const response = await submitQuery({
         sqlQuery,
         offset: offset,  // These will be handled by the DataFabric API
         limit: limit
       });
+      
+      // Log the response for debugging
+      console.log('DataFabric API response:', response);
       
       // Update query status
       setQueryStatus({
@@ -182,12 +181,15 @@ function DataCopySteps() {
   
   // Start polling for job status
   const startPolling = (queryId) => {
+    console.log('Starting to poll for query status, ID:', queryId);
     setIsPolling(true);
     setJobStatus({ loading: true, status: 'pending', progress: 0, error: null });
     
     const interval = setInterval(async () => {
       try {
+        console.log('Checking status for query ID:', queryId);
         const statusResponse = await checkQueryStatus(queryId);
+        console.log('Status response:', statusResponse);
         
         setJobStatus({
           loading: true,
@@ -236,9 +238,11 @@ function DataCopySteps() {
   // Step 2: Fetch query results
   const fetchResults = async (queryId) => {
     try {
+      console.log('Fetching results for query ID:', queryId);
       setResultsStatus({ loading: true, success: false, error: null, data: null });
       
       const response = await getQueryResults(queryId);
+      console.log('Query results response:', response);
       
       setResultsStatus({
         loading: false,
