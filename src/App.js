@@ -8,6 +8,7 @@ import Layout from './components/Layout';
 import DataCopy from './components/DataCopy';
 import DataCopy2 from './components/DataCopy2';
 import ApiTester from './components/ApiTester';
+import SettingsPage from './pages/SettingsPage';
 import NotFound from './components/NotFound';
 
 // Create theme
@@ -81,6 +82,7 @@ function App() {
             <Route path="/copy" element={<DataCopy />} />
             <Route path="/copy2" element={<DataCopy2 />} />
             <Route path="/api-tester" element={<ApiTester />} />
+            <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>

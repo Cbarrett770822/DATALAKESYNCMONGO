@@ -1,6 +1,7 @@
 // Netlify function to get application settings
-const mongodb = require('./utils/mongodb');
-const Setting = require('./models/setting');
+const mongoose = require('mongoose');
+const Setting = require('./models/setting'); // Keep for backward compatibility
+const Settings = require('./models/settings'); // New structured settings model
 const { handlePreflight, successResponse, errorResponse } = require('./utils/cors-headers');
 
 exports.handler = async function(event, context) {
@@ -11,23 +12,62 @@ exports.handler = async function(event, context) {
   
   try {
     // Connect to MongoDB
-    await mongodb.connectToDatabase();
+    // MongoDB connection string from environment variable
+    const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db_user:1ZbUxIUsqJxmRRlm@cbcluster01.jrsfdsz.mongodb.net/?retryWrites=true&w=majority&appName=CBCLUSTER01';
     
-    // Get all settings
-    const settings = await Setting.find().lean();
+    await mongoose.connect(MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true
+    });
+    
+    // Check for structured settings first
+    let structuredSettings = await Settings.findOne({ name: 'default' }).lean().exec();
+    
+    // If no structured settings exist, create default ones
+    if (!structuredSettings) {
+      // Default DataFabric settings
+      const defaultDataFabric = {
+        tenant: process.env.ION_TENANT || '',
+        saak: process.env.ION_SAAK || '',
+        sask: process.env.ION_SASK || '',
+        clientId: process.env.ION_CLIENT_ID || '',
+        clientSecret: process.env.ION_CLIENT_SECRET || '',
+        apiUrl: process.env.ION_API_URL || '',
+        ssoUrl: process.env.ION_SSO_URL || ''
+      };
+      
+      // Default MongoDB settings
+      const defaultMongoDB = {
+        uri: process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db_user:1ZbUxIUsqJxmRRlm@cbcluster01.jrsfdsz.mongodb.net/?retryWrites=true&w=majority&appName=CBCLUSTER01',
+        database: 'datalake_sync',
+        username: '',
+        password: ''
+      };
+      
+      structuredSettings = {
+        name: 'default',
+        dataFabric: defaultDataFabric,
+        mongodb: defaultMongoDB,
+        options: {
+          batchSize: 50,
+          timeout: 30000,
+          retryAttempts: 3
+        },
+        isActive: true
+      };
+    }
+    
+    // For backward compatibility, also get the old-style settings
+    const oldSettings = await Setting.find().lean();
     
     // Convert array of settings to an object
-    const settingsObject = settings.reduce((obj, setting) => {
+    const oldSettingsObject = oldSettings.reduce((obj, setting) => {
       obj[setting.key] = setting.value;
       return obj;
     }, {});
     
     // Add default settings if not present
     const defaultSettings = {
-      // Connection settings
-      mongodbUri: process.env.MONGODB_URI || 'mongodb+srv://charleslengchai_db_user:1ZbUxIUsqJxmRRlm@cbcluster01.jrsfdsz.mongodb.net/?retryWrites=true&w=majority&appName=CBCLUSTER01',
-      ionCredentialsPath: process.env.ION_CREDENTIALS_PATH || 'D:\\Cascade\\DATALAKESYNC\\ION_Credentials\\IONAPI_CREDENTIALS.ionapi',
-      
       // Sync settings
       defaultWhseid: 'wmwhse1',
       defaultBatchSize: 1000,
@@ -45,19 +85,29 @@ exports.handler = async function(event, context) {
     };
     
     // Merge default settings with stored settings
-    const mergedSettings = { ...defaultSettings, ...settingsObject };
+    const mergedOldSettings = { ...defaultSettings, ...oldSettingsObject };
+    
+    // Combine both settings types
+    const combinedSettings = {
+      ...mergedOldSettings,
+      credentials: {
+        dataFabric: structuredSettings.dataFabric,
+        mongodb: structuredSettings.mongodb
+      },
+      options: structuredSettings.options
+    };
     
     // Disconnect from MongoDB
-    await mongodb.disconnectFromDatabase();
+    await mongoose.disconnect();
     
     // Return success response
-    return successResponse(mergedSettings);
+    return successResponse(combinedSettings);
   } catch (error) {
     console.error('Error in get-settings function:', error);
     
     // Disconnect from MongoDB
     try {
-      await mongodb.disconnectFromDatabase();
+      await mongoose.disconnect();
     } catch (disconnectError) {
       console.error('Error disconnecting from MongoDB:', disconnectError);
     }
