@@ -100,7 +100,6 @@ function DataCopySteps() {
     // Create the simplest possible query - exactly matching the API Tester default
     let sql = `SELECT * FROM "${tableName}"`;
     
-    // Store and return the SQL
     console.log('Generated SQL query:', sql);
     setGeneratedSql(sql);
     return sql;
@@ -113,10 +112,6 @@ function DataCopySteps() {
       setQueryStatus({ loading: true, success: false, error: null, queryId: null });
       setJobStatus({ loading: false, status: null, progress: 0, error: null });
       setResultsStatus({ loading: false, success: false, error: null, data: null });
-      setMongoDbStatus({
-        loading: false, success: false, error: null, stats: null,
-        progress: 0, processingChunks: false, currentChunk: 0, totalChunks: 0
-      });
       
       // Stop any existing polling
       if (pollingInterval) {
@@ -274,7 +269,8 @@ function DataCopySteps() {
   
   // Step 3: Push results to MongoDB
   const handlePushToMongoDB = async () => {
-    if (!resultsStatus.data || !resultsStatus.data.results) {
+    // Check for both results and rows formats
+    if (!resultsStatus.data || (!resultsStatus.data.results && !resultsStatus.data.rows)) {
       setMongoDbStatus({
         loading: false,
         success: false,
@@ -285,8 +281,14 @@ function DataCopySteps() {
     }
     
     try {
-      const records = resultsStatus.data.results;
+      // Handle both results and rows formats from the API
+      const records = resultsStatus.data.results || resultsStatus.data.rows;
       const totalRecords = records.length;
+      
+      console.log('Records format detected:', {
+        format: resultsStatus.data.results ? 'results array' : 'rows array',
+        count: totalRecords
+      });
       
       const CHUNK_SIZE = 50;
       const needsChunking = totalRecords > CHUNK_SIZE;
@@ -560,7 +562,7 @@ function DataCopySteps() {
               <CardHeader 
                 title="Query Results" 
                 subheader={resultsStatus.data ? 
-                  `${resultsStatus.data.results?.length || 0} records retrieved` : 
+                  `${(resultsStatus.data.results?.length || resultsStatus.data.rows?.length || 0)} records retrieved` : 
                   'No results available'}
               />
               <CardContent>
@@ -615,7 +617,7 @@ function DataCopySteps() {
               <Button
                 variant="contained"
                 onClick={handlePushToMongoDB}
-                disabled={mongoDbStatus.loading || !resultsStatus.data || !resultsStatus.data.results}
+                disabled={mongoDbStatus.loading || !resultsStatus.data || (!resultsStatus.data.results && !resultsStatus.data.rows)}
                 startIcon={mongoDbStatus.loading ? <CircularProgress size={20} color="inherit" /> : <StorageIcon />}
                 color="primary"
               >
