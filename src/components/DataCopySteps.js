@@ -49,6 +49,7 @@ function DataCopySteps() {
   
   // Process states
   const [queryStatus, setQueryStatus] = useState({ loading: false, success: false, error: null, queryId: null });
+  const [countStatus, setCountStatus] = useState({ loading: false, success: false, error: null, count: 0, queryId: null });
   const [jobStatus, setJobStatus] = useState({ loading: false, status: null, progress: 0, error: null });
   const [resultsStatus, setResultsStatus] = useState({ loading: false, success: false, error: null, data: null });
   const [mongoDbStatus, setMongoDbStatus] = useState({ 
@@ -105,6 +106,120 @@ function DataCopySteps() {
     return sql;
   };
   
+  // Generate SQL query for counting total records
+  const generateCountSqlQuery = () => {
+    // Use the correct table name - IMPORTANT: Use double quotes around table name
+    let tableName = warehouseId === 'all' 
+      ? 'CSWMS_wmwhse_TASKDETAIL' 
+      : `CSWMS_${warehouseId}_TASKDETAIL`;
+    
+    // Create a COUNT query
+    let sql = `SELECT COUNT(*) AS total_count FROM "${tableName}"`;
+    
+    console.log('Generated COUNT SQL query:', sql);
+    return sql;
+  };
+  
+  // Get total record count
+  const handleGetTotalCount = async () => {
+    try {
+      setCountStatus({ loading: true, success: false, error: null, count: 0, queryId: null });
+      const countSqlQuery = generateCountSqlQuery();
+      console.log('Submitting COUNT query:', { sqlQuery: countSqlQuery });
+      
+      const response = await submitQuery({
+        sqlQuery: countSqlQuery,
+        offset: 0,
+        limit: 1
+      });
+      
+      setCountStatus(prev => ({
+        ...prev,
+        queryId: response.queryId,
+        loading: true
+      }));
+      
+      // Start polling for count results
+      pollCountQueryStatus(response.queryId);
+    } catch (error) {
+      console.error('Error submitting COUNT query:', error);
+      setCountStatus({
+        loading: false,
+        success: false,
+        error: `API Error: ${error.message || 'Unknown error'}`,
+        count: 0,
+        queryId: null
+      });
+    }
+  };
+  
+  // Poll for count query status
+  const pollCountQueryStatus = async (queryId) => {
+    try {
+      const statusResponse = await checkQueryStatus(queryId);
+      const status = (statusResponse.status || '').toUpperCase();
+      
+      if (['COMPLETED', 'FINISHED', 'DONE'].includes(status)) {
+        fetchCountResults(queryId);
+      } else if (status === 'FAILED') {
+        setCountStatus({
+          loading: false,
+          success: false,
+          error: `Count query failed: ${statusResponse.message || 'Unknown error'}`,
+          count: 0,
+          queryId
+        });
+      } else {
+        // Continue polling
+        setTimeout(() => pollCountQueryStatus(queryId), 2000);
+      }
+    } catch (error) {
+      setCountStatus({
+        loading: false,
+        success: false,
+        error: `Error checking count status: ${error.message || 'Unknown error'}`,
+        count: 0,
+        queryId
+      });
+    }
+  };
+  
+  // Fetch count results
+  const fetchCountResults = async (queryId) => {
+    try {
+      const resultsResponse = await getQueryResults(queryId, 0, 1);
+      
+      // Extract count from results
+      let totalCount = 0;
+      if (resultsResponse.rows && resultsResponse.rows.length > 0) {
+        totalCount = parseInt(resultsResponse.rows[0].total_count || 0);
+      } else if (resultsResponse.results && resultsResponse.results.length > 0) {
+        totalCount = parseInt(resultsResponse.results[0].total_count || 0);
+      }
+      
+      setCountStatus({
+        loading: false,
+        success: true,
+        error: null,
+        count: totalCount,
+        queryId
+      });
+      
+      // Move to next step
+      const nextStep = 2;
+      setActiveStep(nextStep);
+      setExpandedSteps(prev => prev.includes(nextStep) ? prev : [...prev, nextStep]);
+    } catch (error) {
+      setCountStatus({
+        loading: false,
+        success: false,
+        error: `Error fetching count: ${error.message || 'Unknown error'}`,
+        count: 0,
+        queryId
+      });
+    }
+  };
+  
   // Step 1: Submit query to DataFabric
   const handleSubmitQuery = async () => {
     try {
@@ -148,7 +263,7 @@ function DataCopySteps() {
       });
       
       // Move to next step and ensure it's expanded
-      const nextStep = 1;
+      const nextStep = 2;
       setActiveStep(nextStep);
       setExpandedSteps(prev => {
         if (!prev.includes(nextStep)) {
@@ -249,7 +364,7 @@ function DataCopySteps() {
       });
       
       // Move to next step and ensure it's expanded
-      const nextStep = 2;
+      const nextStep = 3;
       setActiveStep(nextStep);
       setExpandedSteps(prev => prev.includes(nextStep) ? prev : [...prev, nextStep]);
     } catch (error) {
@@ -330,7 +445,7 @@ function DataCopySteps() {
       });
       
       // Move to next step and ensure it's expanded
-      const nextStep = 3;
+      const nextStep = 4;
       setActiveStep(nextStep);
       setExpandedSteps(prev => prev.includes(nextStep) ? prev : [...prev, nextStep]);
     } catch (error) {
@@ -484,9 +599,72 @@ function DataCopySteps() {
           </StepContent>
         </Step>
         
-        {/* Step 2: Monitor Query Execution */}
+        {/* Step 2: Get Total Record Count */}
         <Step expanded={expandedSteps.includes(1)}>
           <StepLabel onClick={() => handleStepToggle(1)} style={{ cursor: 'pointer' }}>
+            <Typography variant="h6">Get Total Record Count</Typography>
+          </StepLabel>
+          <StepContent>
+            <Card variant="outlined" sx={{ mb: 3 }}>
+              <CardHeader 
+                title="Total Record Count" 
+                subheader={countStatus.success ? 
+                  `${countStatus.count.toLocaleString()} total records in table` : 
+                  'Get the total number of records in the table'}
+              />
+              <CardContent>
+                {countStatus.loading && (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
+                    <CircularProgress />
+                  </Box>
+                )}
+                
+                {countStatus.error && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {countStatus.error}
+                  </Alert>
+                )}
+                
+                {countStatus.success && (
+                  <Box sx={{ textAlign: 'center', py: 2 }}>
+                    <Typography variant="h3" color="primary">
+                      {countStatus.count.toLocaleString()}
+                    </Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ mt: 1 }}>
+                      Total records in {warehouseId === 'all' ? 'all warehouses' : `warehouse ${warehouseId}`}
+                    </Typography>
+                  </Box>
+                )}
+                
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleGetTotalCount}
+                    disabled={countStatus.loading}
+                    startIcon={countStatus.loading ? <CircularProgress size={20} color="inherit" /> : null}
+                  >
+                    {countStatus.loading ? 'Getting Count...' : 'Get Total Record Count'}
+                  </Button>
+                  
+                  {countStatus.success && (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleSubmitQuery}
+                      disabled={queryStatus.loading}
+                    >
+                      Continue to Query Execution
+                    </Button>
+                  )}
+                </Box>
+              </CardContent>
+            </Card>
+          </StepContent>
+        </Step>
+        
+        {/* Step 3: Monitor Query Execution */}
+        <Step expanded={expandedSteps.includes(2)}>
+          <StepLabel onClick={() => handleStepToggle(2)} style={{ cursor: 'pointer' }}>
             <Typography variant="h6">Monitor Query Execution</Typography>
           </StepLabel>
           <StepContent>
@@ -540,7 +718,7 @@ function DataCopySteps() {
                   if (queryStatus.queryId && jobStatus.status === 'completed') {
                     fetchResults(queryStatus.queryId);
                   } else {
-                    setActiveStep(2);
+                    setActiveStep(3);
                   }
                 }}
                 disabled={jobStatus.loading || !jobStatus.status || jobStatus.status !== 'completed'}
@@ -552,9 +730,9 @@ function DataCopySteps() {
           </StepContent>
         </Step>
         
-        {/* Step 3: View Results and Push to MongoDB */}
-        <Step expanded={expandedSteps.includes(2)}>
-          <StepLabel onClick={() => handleStepToggle(2)} style={{ cursor: 'pointer' }}>
+        {/* Step 4: View Results and Push to MongoDB */}
+        <Step expanded={expandedSteps.includes(3)}>
+          <StepLabel onClick={() => handleStepToggle(3)} style={{ cursor: 'pointer' }}>
             <Typography variant="h6">View Results and Push to MongoDB</Typography>
           </StepLabel>
           <StepContent>
@@ -633,9 +811,9 @@ function DataCopySteps() {
           </StepContent>
         </Step>
         
-        {/* Step 4: Completion */}
-        <Step expanded={expandedSteps.includes(3)}>
-          <StepLabel onClick={() => handleStepToggle(3)} style={{ cursor: 'pointer' }}>
+        {/* Step 5: Completion */}
+        <Step expanded={expandedSteps.includes(4)}>
+          <StepLabel onClick={() => handleStepToggle(4)} style={{ cursor: 'pointer' }}>
             <Typography variant="h6">Complete</Typography>
           </StepLabel>
           <StepContent>
@@ -691,6 +869,7 @@ function DataCopySteps() {
                   // Reset all states
                   setActiveStep(0);
                   setExpandedSteps([0]); // Only expand first step
+                  setCountStatus({ loading: false, success: false, error: null, count: 0, queryId: null });
                   setQueryStatus({ loading: false, success: false, error: null, queryId: null });
                   setJobStatus({ loading: false, status: null, progress: 0, error: null });
                   setResultsStatus({ loading: false, success: false, error: null, data: null });
