@@ -63,6 +63,20 @@ function DataCopySteps() {
   // Generated SQL query
   const [generatedSql, setGeneratedSql] = useState('');
   
+  // Track which steps are expanded
+  const [expandedSteps, setExpandedSteps] = useState([0]); // Start with first step expanded
+  
+  // Handle step expansion toggle
+  const handleStepToggle = (step) => {
+    setExpandedSteps(prev => {
+      if (prev.includes(step)) {
+        return prev.filter(s => s !== step);
+      } else {
+        return [...prev, step];
+      }
+    });
+  };
+  
   // Handle form changes
   const handleWarehouseChange = (event) => setWarehouseId(event.target.value);
   const handleYearChange = (event) => setYear(event.target.value);
@@ -78,10 +92,12 @@ function DataCopySteps() {
   
   // Generate SQL query based on filters
   const generateSqlQuery = () => {
+    // Use the correct table name
     let tableName = warehouseId === 'all' 
       ? 'CSWMS_wmwhse_TASKDETAIL' 
       : `CSWMS_${warehouseId}_TASKDETAIL`;
     
+    // Create a simple base query
     let sql = `SELECT * FROM "${tableName}"`;
     
     // Add WHERE clause if filters are applied
@@ -93,7 +109,9 @@ function DataCopySteps() {
       sql += ` WHERE ${conditions.join(' AND ')}`;
     }
     
+    // Add ORDER BY clause
     sql += ` ORDER BY ADDDATE DESC`;
+    
     setGeneratedSql(sql);
     return sql;
   };
@@ -119,11 +137,11 @@ function DataCopySteps() {
       // Generate SQL query
       const sqlQuery = generateSqlQuery();
       
-      // Submit query with pagination parameters
+      // Submit query with pagination parameters handled by the API
       const response = await submitQuery({
         sqlQuery,
-        offset,
-        limit
+        offset: offset,  // These will be handled by the DataFabric API
+        limit: limit
       });
       
       // Update query status
@@ -134,8 +152,15 @@ function DataCopySteps() {
         queryId: response.queryId
       });
       
-      // Move to next step
-      setActiveStep(1);
+      // Move to next step and ensure it's expanded
+      const nextStep = 1;
+      setActiveStep(nextStep);
+      setExpandedSteps(prev => {
+        if (!prev.includes(nextStep)) {
+          return [...prev, nextStep];
+        }
+        return prev;
+      });
       
       // Start polling for status
       startPolling(response.queryId);
@@ -222,7 +247,10 @@ function DataCopySteps() {
         data: response
       });
       
-      setActiveStep(2);
+      // Move to next step and ensure it's expanded
+      const nextStep = 2;
+      setActiveStep(nextStep);
+      setExpandedSteps(prev => prev.includes(nextStep) ? prev : [...prev, nextStep]);
     } catch (error) {
       console.error('Error fetching results:', error);
       
@@ -293,8 +321,10 @@ function DataCopySteps() {
         totalChunks: totalChunks
       });
       
-      // Move to next step
-      setActiveStep(3);
+      // Move to next step and ensure it's expanded
+      const nextStep = 3;
+      setActiveStep(nextStep);
+      setExpandedSteps(prev => prev.includes(nextStep) ? prev : [...prev, nextStep]);
     } catch (error) {
       console.error('Error pushing to MongoDB:', error);
       
@@ -324,10 +354,10 @@ function DataCopySteps() {
         Copy data from DataFabric to MongoDB in a step-by-step process
       </Typography>
       
-      <Stepper activeStep={activeStep} orientation="vertical" sx={{ mb: 4 }}>
+      <Stepper activeStep={activeStep} orientation="vertical" sx={{ mb: 4 }} nonLinear>
         {/* Step 1: Configure and Submit Query */}
-        <Step>
-          <StepLabel>
+        <Step expanded={expandedSteps.includes(0)}>
+          <StepLabel onClick={() => handleStepToggle(0)} style={{ cursor: 'pointer' }}>
             <Typography variant="h6">Configure and Submit Query</Typography>
           </StepLabel>
           <StepContent>
@@ -447,8 +477,8 @@ function DataCopySteps() {
         </Step>
         
         {/* Step 2: Monitor Query Execution */}
-        <Step>
-          <StepLabel>
+        <Step expanded={expandedSteps.includes(1)}>
+          <StepLabel onClick={() => handleStepToggle(1)} style={{ cursor: 'pointer' }}>
             <Typography variant="h6">Monitor Query Execution</Typography>
           </StepLabel>
           <StepContent>
@@ -515,8 +545,8 @@ function DataCopySteps() {
         </Step>
         
         {/* Step 3: View Results and Push to MongoDB */}
-        <Step>
-          <StepLabel>
+        <Step expanded={expandedSteps.includes(2)}>
+          <StepLabel onClick={() => handleStepToggle(2)} style={{ cursor: 'pointer' }}>
             <Typography variant="h6">View Results and Push to MongoDB</Typography>
           </StepLabel>
           <StepContent>
@@ -596,8 +626,8 @@ function DataCopySteps() {
         </Step>
         
         {/* Step 4: Completion */}
-        <Step>
-          <StepLabel>
+        <Step expanded={expandedSteps.includes(3)}>
+          <StepLabel onClick={() => handleStepToggle(3)} style={{ cursor: 'pointer' }}>
             <Typography variant="h6">Complete</Typography>
           </StepLabel>
           <StepContent>
@@ -652,6 +682,7 @@ function DataCopySteps() {
                 onClick={() => {
                   // Reset all states
                   setActiveStep(0);
+                  setExpandedSteps([0]); // Only expand first step
                   setQueryStatus({ loading: false, success: false, error: null, queryId: null });
                   setJobStatus({ loading: false, status: null, progress: 0, error: null });
                   setResultsStatus({ loading: false, success: false, error: null, data: null });
