@@ -86,30 +86,52 @@ function generateMongoDBSchema(columns) {
 }
 
 /**
- * Identify primary key fields from column definitions
+ * Identify primary key fields from column definitions and sample record
  * @param {Array} columns - Column definitions from job status API
+ * @param {Object} sampleRecord - Sample record to verify field existence
  * @returns {Array} - Array of primary key field names
  */
-function identifyPrimaryKeyFields(columns) {
+function identifyPrimaryKeyFields(columns, sampleRecord = null) {
   if (!columns || !Array.isArray(columns)) {
     return ['_id']; // Default to MongoDB's _id
   }
   
-  // Look for common primary key field patterns
+  // Get all available field names from the sample record if provided
+  const availableFields = sampleRecord ? Object.keys(sampleRecord) : [];
+  
+  // First try to find exact primary key matches
+  const exactPkMatches = columns.filter(col => {
+    const name = (col.name || '').toUpperCase();
+    return (name === 'ID' || name === 'KEY' || name === 'PK' || name.endsWith('KEY') || name.endsWith('ID')) &&
+           (!sampleRecord || availableFields.includes(col.name));
+  }).map(col => col.name);
+  
+  if (exactPkMatches.length > 0) {
+    console.log(`Found exact primary key matches: ${exactPkMatches.join(', ')}`);
+    return exactPkMatches;
+  }
+  
+  // Then look for common primary key field patterns
   const potentialPkFields = columns.filter(col => {
     const name = (col.name || '').toUpperCase();
-    return name.includes('KEY') || 
-           name.includes('ID') || 
-           name.endsWith('PK') || 
-           name === 'ID';
+    return (name.includes('KEY') || name.includes('ID') || name.endsWith('PK')) &&
+           (!sampleRecord || availableFields.includes(col.name));
   }).map(col => col.name);
   
   // If we found potential PK fields, use them
   if (potentialPkFields.length > 0) {
+    console.log(`Found potential primary key fields: ${potentialPkFields.join(', ')}`);
     return potentialPkFields;
   }
   
+  // If we have a sample record but no PK fields found, use the first field as a fallback
+  if (sampleRecord && availableFields.length > 0) {
+    console.log(`No primary key fields found, using first available field: ${availableFields[0]}`);
+    return [availableFields[0]];
+  }
+  
   // Otherwise, return MongoDB's default _id
+  console.log('No suitable primary key fields found, using MongoDB _id');
   return ['_id'];
 }
 

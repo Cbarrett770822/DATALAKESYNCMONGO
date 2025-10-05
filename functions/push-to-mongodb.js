@@ -101,13 +101,37 @@ exports.handler = async function(event, context) {
     const Model = getOrCreateModel(tableName, columns);
     logger.info(`Using model for table: ${tableName}`);
     
-    // Identify primary key fields
-    const keyFields = requestBody.keyFields || identifyPrimaryKeyFields(columns);
-    logger.info(`Using key fields for identification: ${keyFields.join(', ')}`);
-    
     // Transform records
     const transformedRecords = transformData(requestBody.records);
     logger.info(`Transformed ${transformedRecords.length} records for MongoDB`);
+    
+    // Get a sample record for key field validation
+    const sampleRecord = transformedRecords.length > 0 ? transformedRecords[0] : null;
+    
+    // Identify primary key fields using the sample record to validate field existence
+    const keyFields = requestBody.keyFields || identifyPrimaryKeyFields(columns, sampleRecord);
+    logger.info(`Using key fields for identification: ${keyFields.join(', ')}`);
+    
+    // Validate that all key fields exist in the sample record
+    if (sampleRecord) {
+      const missingKeys = keyFields.filter(key => !sampleRecord.hasOwnProperty(key));
+      if (missingKeys.length > 0) {
+        logger.warn(`Warning: Some key fields are missing in the data: ${missingKeys.join(', ')}`);
+        // Remove missing keys from the key fields list
+        const validKeyFields = keyFields.filter(key => sampleRecord.hasOwnProperty(key));
+        if (validKeyFields.length > 0) {
+          logger.info(`Using valid key fields instead: ${validKeyFields.join(', ')}`);
+          keyFields.length = 0; // Clear the array
+          keyFields.push(...validKeyFields); // Add valid keys
+        } else {
+          // If no valid key fields, use the first field from the record
+          const fallbackKey = Object.keys(sampleRecord)[0];
+          logger.info(`No valid key fields found, using first field as fallback: ${fallbackKey}`);
+          keyFields.length = 0;
+          keyFields.push(fallbackKey);
+        }
+      }
+    }
     
     // Track statistics
     const stats = {
@@ -131,25 +155,53 @@ exports.handler = async function(event, context) {
     // Function to process a single record
     async function processRecord(record) {
       try {
-        // Build query based on key fields
-        const query = {};
-        let hasAllKeys = true;
-        let recordIdentifier = 'unknown';
-        
-        // Check if record has all required key fields
-        for (const keyField of keyFields) {
-          if (record[keyField] === undefined) {
-            hasAllKeys = false;
-            stats.errors++;
-            stats.errorDetails.push(`Record missing required key field: ${keyField}`);
-            return;
-          }
-          query[keyField] = record[keyField];
-          recordIdentifier = record[keyField]; // Use the first key field as identifier in logs
+        // If record is empty or not an object, skip it
+        if (!record || typeof record !== 'object') {
+          stats.errors++;
+          stats.errorDetails.push('Invalid record: not an object');
+          return;
         }
         
-        if (!hasAllKeys) {
+        // Build query based on key fields
+        const query = {};
+        let recordIdentifier = 'unknown';
+        
+        // Check if we have any key fields defined
+        if (!keyFields || keyFields.length === 0) {
+          // If no key fields, create a new document with MongoDB's _id
+          const newRecord = new Model(record);
+          await newRecord.save();
+          stats.inserted++;
+          logger.debug(`Inserted record with new _id`);
           return;
+        }
+        
+        // Check if record has all required key fields
+        let validKeyFound = false;
+        
+        for (const keyField of keyFields) {
+          if (record[keyField] !== undefined) {
+            query[keyField] = record[keyField];
+            recordIdentifier = record[keyField]; // Use the first valid key field as identifier in logs
+            validKeyFound = true;
+          }
+        }
+        
+        // If no valid keys found, use a fallback approach
+        if (!validKeyFound) {
+          // Try to find any field that might work as an identifier
+          const recordFields = Object.keys(record);
+          if (recordFields.length > 0) {
+            const fallbackField = recordFields[0];
+            query[fallbackField] = record[fallbackField];
+            recordIdentifier = record[fallbackField];
+            logger.debug(`No key fields found in record, using fallback field: ${fallbackField}`);
+          } else {
+            // If record has no fields at all, skip it
+            stats.errors++;
+            stats.errorDetails.push('Record has no fields');
+            return;
+          }
         }
         
         // Use findOneAndUpdate with upsert to efficiently handle both insert and update cases
