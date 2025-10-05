@@ -40,7 +40,8 @@ const drawerWidth = 260;
 
 // Navigation items
 const navItems = [
-  { text: 'Data Copy', path: '/', icon: <SyncIcon />, description: 'Copy TaskDetail data in batches' },
+  { text: 'Data Copy (Steps)', path: '/', icon: <SyncIcon />, description: 'Copy TaskDetail data with step-by-step interface' },
+  { text: 'Data Copy (Legacy)', path: '/copy', icon: <SyncIcon />, description: 'Copy TaskDetail data in batches' },
   { text: 'Data Copy (Single)', path: '/copy2', icon: <SyncIcon />, description: 'Copy TaskDetail data one record at a time' },
   { text: 'API Tester', path: '/api-tester', icon: <ApiIcon />, description: 'Test DataFabric API queries' },
   { text: 'Settings', path: '/settings', icon: <SettingsIcon />, description: 'Configure API credentials and options' },
