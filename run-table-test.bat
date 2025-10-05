@@ -9,8 +9,7 @@ if "%1"=="" (
   set TABLE_NAME=%1
 )
 
-echo Copying .env.test to .env...
-copy .env.test .env
+echo Using existing .env file...
 
 echo Running test script...
 node test-specific-table.js %TABLE_NAME%

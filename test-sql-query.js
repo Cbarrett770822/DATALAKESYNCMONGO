@@ -2,15 +2,20 @@
 const axios = require('axios');
 require('dotenv').config();
 
-// Configuration - update these values as needed
+// Configuration - using application's existing environment variables
 const config = {
-  apiUrl: process.env.DATAFABRIC_API_URL || 'https://api.datafabric.cswg.com',
-  clientId: process.env.DATAFABRIC_CLIENT_ID,
-  clientSecret: process.env.DATAFABRIC_CLIENT_SECRET,
-  tenant: process.env.DATAFABRIC_TENANT,
-  saak: process.env.DATAFABRIC_SAAK,
-  sask: process.env.DATAFABRIC_SASK
+  apiUrl: process.env.ION_API_URL || process.env.DATAFABRIC_API_URL || 'https://api.datafabric.cswg.com',
+  clientId: process.env.ION_CLIENT_ID || process.env.DATAFABRIC_CLIENT_ID,
+  clientSecret: process.env.ION_CLIENT_SECRET || process.env.DATAFABRIC_CLIENT_SECRET,
+  tenant: process.env.ION_TENANT || process.env.DATAFABRIC_TENANT,
+  saak: process.env.ION_SAAK || process.env.DATAFABRIC_SAAK,
+  sask: process.env.ION_SASK || process.env.DATAFABRIC_SASK
 };
+
+// Log configuration (without secrets)
+console.log('Using API URL:', config.apiUrl);
+console.log('Using tenant:', config.tenant);
+console.log('Credentials available:', !!config.clientId && !!config.clientSecret && !!config.saak && !!config.sask);
 
 // SQL queries to test
 const queriesToTest = [
@@ -36,25 +41,12 @@ const queriesToTest = [
   'SELECT 1'
 ];
 
-// Get authentication token
+// Import the utils module
+const utils = require('./utils');
+
+// Get authentication token using the utils module
 async function getToken() {
-  try {
-    console.log('Getting authentication token...');
-    
-    const tokenResponse = await axios.post(`${config.apiUrl}/v1/token`, {
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      tenant: config.tenant,
-      saak: config.saak,
-      sask: config.sask
-    });
-    
-    console.log('Token obtained successfully');
-    return tokenResponse.data.token;
-  } catch (error) {
-    console.error('Error getting token:', error.response?.data || error.message);
-    throw error;
-  }
+  return utils.getToken(config);
 }
 
 // Submit a query to DataFabric
