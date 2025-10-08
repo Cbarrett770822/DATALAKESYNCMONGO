@@ -86,9 +86,18 @@ function DataCopySteps() {
     const value = parseInt(event.target.value, 10);
     setOffset(isNaN(value) ? 0 : Math.max(0, value));
   };
+  // Define a maximum safe limit to prevent 502 errors
+  const MAX_SAFE_LIMIT = 4000;
+  
   const handleLimitChange = (event) => {
     const value = parseInt(event.target.value, 10);
-    setLimit(isNaN(value) ? 100 : Math.max(1, value));
+    const safeValue = isNaN(value) ? 100 : Math.max(1, Math.min(value, MAX_SAFE_LIMIT));
+    
+    if (value > MAX_SAFE_LIMIT) {
+      alert(`Limit has been capped at ${MAX_SAFE_LIMIT} to prevent server errors. For larger result sets, use pagination with offset.`);
+    }
+    
+    setLimit(safeValue);
   };
   
   // Generate SQL query - using exact same format as API Tester
@@ -244,11 +253,16 @@ function DataCopySteps() {
         limit
       });
       
+      // Convert offset and limit to numbers to ensure they're not strings
+      const numericOffset = parseInt(offset, 10);
+      const numericLimit = parseInt(limit, 10);
+      console.log('Numeric offset:', numericOffset, 'and numeric limit:', numericLimit);
+      
       // Use the same parameter format as API Tester
       const response = await submitQuery({
         sqlQuery,
-        offset,
-        limit
+        offset: numericOffset,
+        limit: numericLimit
       });
       
       // Log the response for debugging
@@ -353,13 +367,29 @@ function DataCopySteps() {
       setResultsStatus({ loading: true, success: false, error: null, data: null });
       
       // Pass offset and limit parameters like API Tester does
-      const resultsResponse = await getQueryResults(queryId, offset, limit);
+      console.log('Fetching results with offset:', offset, 'and limit:', limit);
+      
+      // Convert offset and limit to numbers to ensure they're not strings
+      const numericOffset = parseInt(offset, 10);
+      const numericLimit = parseInt(limit, 10);
+      console.log('Numeric offset:', numericOffset, 'and numeric limit:', numericLimit);
+      
+      const resultsResponse = await getQueryResults(queryId, numericOffset, numericLimit);
       console.log('Results response received:', resultsResponse);
+      
+      // Check if we actually got records
+      const recordCount = resultsResponse?.results?.length || resultsResponse?.rows?.length || 0;
+      console.log(`Retrieved ${recordCount} records from offset ${numericOffset} with limit ${numericLimit}`);
+      
+      if (recordCount === 0 && numericOffset > 0) {
+        console.warn('No records found with the current offset. This might indicate we have reached the end of the dataset.');
+      }
       
       setResultsStatus({
         loading: false,
         success: true,
-        error: null,
+        error: recordCount === 0 && numericOffset > 0 ? 
+          `No records found with offset ${numericOffset}. Try a smaller offset value.` : null,
         data: resultsResponse
       });
       
@@ -740,7 +770,7 @@ function DataCopySteps() {
               <CardHeader 
                 title="Query Results" 
                 subheader={resultsStatus.data ? 
-                  `${(resultsStatus.data.results?.length || resultsStatus.data.rows?.length || 0)} records retrieved` : 
+                  `${(resultsStatus.data.results?.length || resultsStatus.data.rows?.length || 0)} records retrieved (Offset: ${offset}, Limit: ${limit})` : 
                   'No results available'}
               />
               <CardContent>
