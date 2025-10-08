@@ -715,13 +715,13 @@ function DataCopySteps() {
               <Button
                 variant="contained"
                 onClick={() => {
-                  if (queryStatus.queryId && jobStatus.status === 'completed') {
+                  if (queryStatus.queryId && ['COMPLETED', 'FINISHED', 'DONE', 'completed'].includes(jobStatus.status?.toUpperCase())) {
                     fetchResults(queryStatus.queryId);
                   } else {
                     setActiveStep(3);
                   }
                 }}
-                disabled={jobStatus.loading || !jobStatus.status || jobStatus.status !== 'completed'}
+                disabled={jobStatus.loading || !jobStatus.status || !['COMPLETED', 'FINISHED', 'DONE', 'completed'].includes(jobStatus.status?.toUpperCase())}
                 startIcon={<CheckCircleIcon />}
               >
                 View Results
