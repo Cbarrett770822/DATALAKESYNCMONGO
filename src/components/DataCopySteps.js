@@ -193,6 +193,20 @@ function DataCopySteps() {
     }
   };
   
+  // Check if offset is valid based on total count
+  const checkOffsetValidity = async () => {
+    if (countStatus.success && countStatus.count > 0) {
+      // If offset is greater than total count, reset to 0
+      if (offset >= countStatus.count) {
+        console.warn(`Offset (${offset}) is greater than or equal to total count (${countStatus.count}). Resetting to 0.`);
+        setOffset(0);
+        return false;
+      }
+      return true;
+    }
+    return true; // If we don't have count data, assume offset is valid
+  };
+  
   // Fetch count results
   const fetchCountResults = async (queryId) => {
     try {
@@ -245,6 +259,12 @@ function DataCopySteps() {
       
       // Generate SQL query
       const sqlQuery = generateSqlQuery();
+      
+      // Check if offset is valid based on total count
+      const isOffsetValid = await checkOffsetValidity();
+      if (!isOffsetValid) {
+        console.log('Offset was invalid and has been reset to 0');
+      }
       
       // Submit query with pagination parameters - exactly like API Tester
       console.log('Submitting query to DataFabric API:', {
@@ -365,6 +385,12 @@ function DataCopySteps() {
     try {
       console.log('Fetching results for query ID:', queryId);
       setResultsStatus({ loading: true, success: false, error: null, data: null });
+      
+      // Check if offset is valid based on total count
+      const isOffsetValid = await checkOffsetValidity();
+      if (!isOffsetValid) {
+        console.log('Offset was invalid and has been reset to 0');
+      }
       
       // Pass offset and limit parameters like API Tester does
       console.log('Fetching results with offset:', offset, 'and limit:', limit);
@@ -786,12 +812,12 @@ function DataCopySteps() {
                   </Alert>
                 )}
                 
-                {resultsStatus.data && resultsStatus.data.results && (
+                {resultsStatus.data && (resultsStatus.data.results || resultsStatus.data.rows) && (
                   <Box sx={{ mt: 2 }}>
                     <Grid container spacing={2}>
                       <Grid item xs={12} md={6}>
                         <Chip 
-                          label={`${resultsStatus.data.results.length} Records`} 
+                          label={`${resultsStatus.data.results?.length || resultsStatus.data.rows?.length || 0} Records`} 
                           color="primary" 
                           variant="outlined" 
                           sx={{ mr: 1 }}
@@ -806,12 +832,51 @@ function DataCopySteps() {
                       </Grid>
                     </Grid>
                     
-                    {resultsStatus.data.results.length > 0 && (
+                    {/* Pagination Controls */}
+                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 2 }}>
+                      <Button
+                        variant="outlined"
+                        disabled={offset === 0}
+                        onClick={() => {
+                          const newOffset = Math.max(0, offset - limit);
+                          setOffset(newOffset);
+                          if (queryStatus.queryId) {
+                            fetchResults(queryStatus.queryId);
+                          }
+                        }}
+                        sx={{ mx: 1 }}
+                      >
+                        Previous Page
+                      </Button>
+                      <Typography variant="body1" sx={{ alignSelf: 'center', mx: 2 }}>
+                        Page {Math.floor(offset / limit) + 1}
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        disabled={(resultsStatus.data.results?.length || resultsStatus.data.rows?.length || 0) < limit}
+                        onClick={() => {
+                          const newOffset = offset + limit;
+                          setOffset(newOffset);
+                          if (queryStatus.queryId) {
+                            fetchResults(queryStatus.queryId);
+                          }
+                        }}
+                        sx={{ mx: 1 }}
+                      >
+                        Next Page
+                      </Button>
+                    </Box>
+                    
+                    {((resultsStatus.data.results && resultsStatus.data.results.length > 0) || 
+                      (resultsStatus.data.rows && resultsStatus.data.rows.length > 0)) && (
                       <Box sx={{ mt: 2, mb: 1 }}>
                         <Typography variant="subtitle2" gutterBottom>Sample Data (First Record):</Typography>
                         <Card variant="outlined" sx={{ bgcolor: 'grey.100', p: 2 }}>
                           <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
-                            {JSON.stringify(resultsStatus.data.results[0], null, 2)}
+                            {JSON.stringify(
+                              resultsStatus.data.results?.[0] || resultsStatus.data.rows?.[0], 
+                              null, 2
+                            )}
                           </Typography>
                         </Card>
                       </Box>
